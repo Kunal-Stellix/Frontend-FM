@@ -1,19 +1,25 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Lightbulb, X } from "lucide-react";
-import { fetchCategories, fetchIdeas, fetchStatusCounts, toggleVote, type StatusCounts } from "@/lib/feedbackApi";
-import { hasStoredSession } from "@/lib/authStorage";
+import {
+  fetchCategories,
+  fetchIdeaById,
+  fetchIdeas,
+  fetchStatusCounts,
+  toggleVote,
+  type StatusCounts,
+} from "@/lib/feedbackApi";
+import { hasStoredSession, subscribeToAuthSession } from "@/lib/authStorage";
 import type { Category, Idea, IdeaStatus, SortOption } from "@/types/idea";
 import { CategoryFilterChips } from "./CategoryFilterChips";
+import { IdeaDetailsModal } from "./IdeaDetailsModal";
 import { IdeaList } from "./IdeaList";
 import { IdeaSearchBar } from "./IdeaSearchBar";
 import { SortControls } from "./SortControls";
 import { StatusFilter } from "./StatusFilter";
 import { SubmitIdeaModal } from "./SubmitIdeaModal";
-
-/* ── Toast type ── */
 
 type ToastTone = "info" | "success" | "warning" | "error";
 
@@ -24,14 +30,18 @@ type ToastItem = {
   exiting?: boolean;
 };
 
+type DetailState = {
+  ideaId: string;
+  idea: Idea | null;
+  error: string | null;
+};
+
 const TOAST_ALERT_CLASS: Record<ToastTone, string> = {
   info: "alert-info",
   success: "alert-success",
   warning: "alert-warning",
   error: "alert-error",
 };
-
-/* ── URL param helpers ── */
 
 const SORT_OPTIONS: SortOption[] = [
   "most_votes",
@@ -66,22 +76,25 @@ const statusParams = (value: string | null): IdeaStatus[] =>
     STATUS_OPTIONS.includes(item as IdeaStatus),
   );
 
-/* ── Component ── */
-
 export function FeedbackPageClient() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const searchParam = searchParams.get("search");
+  const sortValue = searchParams.get("sort");
+  const categoriesParam = searchParams.get("categories");
+  const statusesParam = searchParams.get("statuses");
+  const pageParam = searchParams.get("page");
+  const composeParam = searchParams.get("compose");
+  const detailParam = searchParams.get("detail");
 
-  /* URL-derived state */
-  const search = searchParams.get("search") ?? "";
-  const sort = sortParam(searchParams.get("sort"));
-  const categories = parseListParam(searchParams.get("categories"));
-  const statuses = statusParams(searchParams.get("statuses"));
-  const page = Math.max(Number(searchParams.get("page") ?? "1") || 1, 1);
-  const isModalOpen = searchParams.get("compose") === "1";
+  const search = searchParam ?? "";
+  const sort = sortParam(sortValue);
+  const categories = useMemo(() => parseListParam(categoriesParam), [categoriesParam]);
+  const statuses = useMemo(() => statusParams(statusesParam), [statusesParam]);
+  const page = Math.max(Number(pageParam ?? "1") || 1, 1);
+  const isModalOpen = composeParam === "1";
 
-  /* Local state */
   const [ideas, setIdeas] = useState<Idea[]>([]);
   const [total, setTotal] = useState(0);
   const [hasNextPage, setHasNextPage] = useState(false);
@@ -89,6 +102,7 @@ export function FeedbackPageClient() {
   const [error, setError] = useState<string | null>(null);
   const [availableCategories, setAvailableCategories] = useState<Category[]>([]);
   const [statusCounts, setStatusCounts] = useState<StatusCounts | null>(null);
+  const [detailState, setDetailState] = useState<DetailState | null>(null);
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const [votingIds, setVotingIds] = useState<string[]>([]);
   const [showVoteAuthPrompt, setShowVoteAuthPrompt] = useState(false);
@@ -96,9 +110,24 @@ export function FeedbackPageClient() {
   const requestIdRef = useRef(0);
   const toastIdRef = useRef(0);
 
-  const isLoggedIn = hasStoredSession();
+  const isLoggedIn = useSyncExternalStore(
+    subscribeToAuthSession,
+    hasStoredSession,
+    () => false,
+  );
 
-  /* ── Toast helpers ── */
+  const activeIdeaFromList = useMemo(
+    () => (detailParam ? ideas.find((idea) => idea.id === detailParam) ?? null : null),
+    [detailParam, ideas],
+  );
+  const fetchedDetailIdea =
+    detailParam && detailState?.ideaId === detailParam ? detailState.idea : null;
+  const fetchedDetailError =
+    detailParam && detailState?.ideaId === detailParam ? detailState.error : null;
+  const detailLoading = Boolean(
+    detailParam && !activeIdeaFromList && detailState?.ideaId !== detailParam,
+  );
+  const activeIdea = activeIdeaFromList ?? fetchedDetailIdea;
 
   const addToast = (tone: ToastTone, message: string) => {
     const id = ++toastIdRef.current;
@@ -106,24 +135,22 @@ export function FeedbackPageClient() {
 
     window.setTimeout(() => {
       setToasts((current) =>
-        current.map((t) => (t.id === id ? { ...t, exiting: true } : t)),
+        current.map((toast) => (toast.id === id ? { ...toast, exiting: true } : toast)),
       );
       window.setTimeout(() => {
-        setToasts((current) => current.filter((t) => t.id !== id));
+        setToasts((current) => current.filter((toast) => toast.id !== id));
       }, 300);
     }, 3000);
   };
 
   const dismissToast = (id: number) => {
     setToasts((current) =>
-      current.map((t) => (t.id === id ? { ...t, exiting: true } : t)),
+      current.map((toast) => (toast.id === id ? { ...toast, exiting: true } : toast)),
     );
     window.setTimeout(() => {
-      setToasts((current) => current.filter((t) => t.id !== id));
+      setToasts((current) => current.filter((toast) => toast.id !== id));
     }, 300);
   };
-
-  /* ── Data fetching ── */
 
   useEffect(() => {
     const loadCategories = async () => {
@@ -165,16 +192,12 @@ export function FeedbackPageClient() {
 
         if (requestIdRef.current !== currentRequestId) return;
 
-        setIdeas((current) =>
-          page === 1 ? response.ideas : [...current, ...response.ideas],
-        );
+        setIdeas((current) => (page === 1 ? response.ideas : [...current, ...response.ideas]));
         setTotal(response.total);
         setHasNextPage(response.hasNextPage);
       } catch (loadError) {
         if (requestIdRef.current !== currentRequestId) return;
-        setError(
-          loadError instanceof Error ? loadError.message : "Unable to load ideas.",
-        );
+        setError(loadError instanceof Error ? loadError.message : "Unable to load ideas.");
         if (page === 1) setIdeas([]);
       } finally {
         if (requestIdRef.current === currentRequestId) setLoading(false);
@@ -184,7 +207,44 @@ export function FeedbackPageClient() {
     void loadIdeas();
   }, [categories, page, reloadNonce, search, sort, statuses]);
 
-  /* ── URL sync ── */
+  useEffect(() => {
+    if (!detailParam || activeIdeaFromList) {
+      return;
+    }
+
+    let active = true;
+    const requestedIdeaId = detailParam;
+
+    void fetchIdeaById(requestedIdeaId)
+      .then((idea) => {
+        if (!active) return;
+        if (!idea) {
+          setDetailState({
+            ideaId: requestedIdeaId,
+            idea: null,
+            error: "We couldn't find that idea in the current mock dataset.",
+          });
+          return;
+        }
+        setDetailState({
+          ideaId: requestedIdeaId,
+          idea,
+          error: null,
+        });
+      })
+      .catch(() => {
+        if (!active) return;
+        setDetailState({
+          ideaId: requestedIdeaId,
+          idea: null,
+          error: "Unable to load idea details right now.",
+        });
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [activeIdeaFromList, detailParam]);
 
   const replaceQuery = useMemo(
     () =>
@@ -195,35 +255,50 @@ export function FeedbackPageClient() {
         statuses?: IdeaStatus[] | null;
         page?: number | null;
         compose?: boolean | null;
+        detail?: string | null;
       }) => {
         const params = new URLSearchParams(searchParams.toString());
 
         if ("search" in updates) {
-          const v = updates.search?.trim();
-          v ? params.set("search", v) : params.delete("search");
+          const value = updates.search?.trim();
+          if (value) params.set("search", value);
+          else params.delete("search");
         }
         if ("sort" in updates) {
-          updates.sort && updates.sort !== "most_votes"
-            ? params.set("sort", updates.sort)
-            : params.delete("sort");
+          if (updates.sort && updates.sort !== "most_votes") {
+            params.set("sort", updates.sort);
+          } else {
+            params.delete("sort");
+          }
         }
         if ("categories" in updates) {
-          updates.categories?.length
-            ? params.set("categories", updates.categories.join(","))
-            : params.delete("categories");
+          if (updates.categories?.length) {
+            params.set("categories", updates.categories.join(","));
+          } else {
+            params.delete("categories");
+          }
         }
         if ("statuses" in updates) {
-          updates.statuses?.length
-            ? params.set("statuses", updates.statuses.join(","))
-            : params.delete("statuses");
+          if (updates.statuses?.length) {
+            params.set("statuses", updates.statuses.join(","));
+          } else {
+            params.delete("statuses");
+          }
         }
         if ("page" in updates) {
-          updates.page && updates.page > 1
-            ? params.set("page", String(updates.page))
-            : params.delete("page");
+          if (updates.page && updates.page > 1) {
+            params.set("page", String(updates.page));
+          } else {
+            params.delete("page");
+          }
         }
         if ("compose" in updates) {
-          updates.compose ? params.set("compose", "1") : params.delete("compose");
+          if (updates.compose) params.set("compose", "1");
+          else params.delete("compose");
+        }
+        if ("detail" in updates) {
+          if (updates.detail) params.set("detail", updates.detail);
+          else params.delete("detail");
         }
 
         const qs = params.toString();
@@ -231,8 +306,6 @@ export function FeedbackPageClient() {
       },
     [pathname, router, searchParams],
   );
-
-  /* ── Handlers ── */
 
   const handleOpenSubmit = () => {
     if (!isLoggedIn) {
@@ -250,11 +323,10 @@ export function FeedbackPageClient() {
       return;
     }
 
-    const snapshot = ideas.find((idea) => idea.id === ideaId);
+    const snapshot = ideas.find((idea) => idea.id === ideaId) ?? activeIdea;
     if (!snapshot) return;
 
-    /* Optimistic update */
-    setVotingIds((c) => [...c, ideaId]);
+    setVotingIds((current) => [...current, ideaId]);
     setIdeas((current) =>
       current.map((idea) =>
         idea.id === ideaId
@@ -266,6 +338,18 @@ export function FeedbackPageClient() {
           : idea,
       ),
     );
+    setDetailState((current) =>
+      current && current.idea?.id === ideaId
+        ? {
+            ...current,
+            idea: {
+              ...current.idea,
+              hasVoted: !current.idea.hasVoted,
+              voteCount: current.idea.voteCount + (current.idea.hasVoted ? -1 : 1),
+            },
+          }
+        : current,
+    );
 
     try {
       const result = await toggleVote(ideaId);
@@ -276,8 +360,19 @@ export function FeedbackPageClient() {
             : idea,
         ),
       );
+      setDetailState((current) =>
+        current && current.idea?.id === ideaId
+          ? {
+              ...current,
+              idea: {
+                ...current.idea,
+                voteCount: result.voteCount,
+                hasVoted: result.hasVoted,
+              },
+            }
+          : current,
+      );
     } catch (voteError) {
-      /* Rollback */
       setIdeas((current) =>
         current.map((idea) =>
           idea.id === ideaId
@@ -285,20 +380,29 @@ export function FeedbackPageClient() {
             : idea,
         ),
       );
+      setDetailState((current) =>
+        current && current.idea?.id === ideaId
+          ? {
+              ...current,
+              idea: {
+                ...current.idea,
+                voteCount: snapshot.voteCount,
+                hasVoted: snapshot.hasVoted,
+              },
+            }
+          : current,
+      );
       addToast(
         "error",
         voteError instanceof Error ? voteError.message : "Unable to update vote right now.",
       );
     } finally {
-      setVotingIds((c) => c.filter((id) => id !== ideaId));
+      setVotingIds((current) => current.filter((id) => id !== ideaId));
     }
   };
 
-  /* ── Render ── */
-
   return (
     <section className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-6 sm:px-6 lg:px-8">
-      {/* ── Hero ── */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <div className="flex items-center gap-2">
@@ -316,7 +420,7 @@ export function FeedbackPageClient() {
         </div>
 
         <div className="flex items-center gap-3">
-          <div className="badge badge-outline badge-lg tabular-nums gap-1.5">
+          <div className="badge badge-outline badge-lg gap-1.5 tabular-nums">
             <span className="font-bold">{total}</span>
             ideas
           </div>
@@ -326,20 +430,15 @@ export function FeedbackPageClient() {
         </div>
       </div>
 
-      {/* ── Search ── */}
       <IdeaSearchBar
-        key={search}
         value={search}
         onChange={(value) => replaceQuery({ search: value, page: 1 })}
       />
 
-      {/* ── Main grid: sidebar + content ── */}
-      <div className="grid gap-6 lg:grid-cols-[240px_1fr]">
-        {/* Sidebar */}
+      <div className="grid gap-6 lg:grid-cols-[300px_1fr]">
         <aside className="space-y-6 lg:sticky lg:top-20 lg:self-start">
-          {/* Categories */}
-          <div>
-            <h2 className="text-xs font-semibold uppercase tracking-widest text-base-content/50 px-2 mb-2">
+          <div className="rounded-2xl border border-base-300/70 bg-base-100/70 p-4 shadow-sm">
+            <h2 className="mb-3 px-2 text-sm font-bold uppercase tracking-[0.22em] text-base-content/70">
               Categories
             </h2>
             <CategoryFilterChips
@@ -349,12 +448,10 @@ export function FeedbackPageClient() {
             />
           </div>
 
-          {/* Divider */}
           <div className="divider my-0" />
 
-          {/* Status */}
-          <div>
-            <h2 className="text-xs font-semibold uppercase tracking-widest text-base-content/50 px-2 mb-2">
+          <div className="rounded-2xl border border-base-300/70 bg-base-100/70 p-4 shadow-sm">
+            <h2 className="mb-3 px-2 text-sm font-bold uppercase tracking-[0.22em] text-base-content/70">
               Status
             </h2>
             <StatusFilter
@@ -365,20 +462,17 @@ export function FeedbackPageClient() {
           </div>
         </aside>
 
-        {/* Main content */}
         <div className="space-y-4">
-          {/* Sort tabs */}
           <div className="flex items-center justify-between gap-4">
             <SortControls
               value={sort}
               onChange={(next) => replaceQuery({ sort: next, page: 1 })}
             />
-            <p className="text-xs text-base-content/40 tabular-nums hidden sm:block">
+            <p className="hidden text-xs tabular-nums text-base-content/40 sm:block">
               {total} results
             </p>
           </div>
 
-          {/* Idea list */}
           <IdeaList
             ideas={ideas}
             loading={loading}
@@ -386,26 +480,34 @@ export function FeedbackPageClient() {
             hasNextPage={hasNextPage}
             onLoadMore={() => replaceQuery({ page: page + 1 })}
             onVoteToggle={handleVoteToggle}
-            onRetry={() => setReloadNonce((c) => c + 1)}
+            onRetry={() => setReloadNonce((current) => current + 1)}
             onOpenSubmit={handleOpenSubmit}
             isLoggedIn={isLoggedIn}
             votingIds={votingIds}
-            onOpenDetails={() =>
-              addToast("info", "Idea detail pages are coming soon. Browse and vote here for now.")
-            }
+            onOpenDetails={(ideaId) => replaceQuery({ detail: ideaId })}
           />
         </div>
       </div>
 
-      {/* ── Submit Modal ── */}
+      <IdeaDetailsModal
+        open={Boolean(detailParam)}
+        idea={activeIdea}
+        loading={detailLoading}
+        error={activeIdeaFromList ? null : fetchedDetailError}
+        isLoggedIn={isLoggedIn}
+        isVoting={Boolean(activeIdea && votingIds.includes(activeIdea.id))}
+        onVoteToggle={handleVoteToggle}
+        onClose={() => replaceQuery({ detail: null })}
+      />
+
       {isModalOpen ? (
         <SubmitIdeaModal
           isOpen={isModalOpen}
           onClose={handleCloseSubmit}
           onSuccess={(newIdea) => {
             addToast("success", "Your idea was submitted successfully!");
-            setIdeas((c) => [newIdea, ...c]);
-            setTotal((c) => c + 1);
+            setIdeas((current) => [newIdea, ...current]);
+            setTotal((current) => current + 1);
             setHasNextPage(true);
             replaceQuery({ compose: false, page: 1 });
           }}
@@ -414,7 +516,6 @@ export function FeedbackPageClient() {
         />
       ) : null}
 
-      {/* ── Vote Auth Prompt ── */}
       {showVoteAuthPrompt ? (
         <dialog className="modal modal-open" open>
           <div className="modal-box max-w-md">
@@ -445,7 +546,6 @@ export function FeedbackPageClient() {
         </dialog>
       ) : null}
 
-      {/* ── Toast stack ── */}
       {toasts.length > 0 ? (
         <div className="toast toast-end toast-top z-50">
           {toasts.map((toast) => (

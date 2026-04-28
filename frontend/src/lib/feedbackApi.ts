@@ -74,8 +74,6 @@ const sortIdeas = (ideas: Idea[], sort: SortOption) => {
 };
 
 export async function fetchIdeas(params: FetchIdeasParams = {}): Promise<IdeaListResponse> {
-  await sleep(400);
-
   const page = params.page ?? 1;
   const pageSize = params.pageSize ?? DEFAULT_PAGE_SIZE;
   const sort = params.sort ?? "most_votes";
@@ -92,6 +90,12 @@ export async function fetchIdeas(params: FetchIdeasParams = {}): Promise<IdeaLis
     pageSize,
     hasNextPage: start + pageSize < sortedIdeas.length,
   };
+}
+
+export async function fetchIdeaById(ideaId: string): Promise<Idea | null> {
+  await sleep(120);
+  const idea = currentIdeas.find((entry) => entry.id === ideaId);
+  return idea ?? null;
 }
 
 export async function searchIdeasByTitle(query: string): Promise<DuplicateCheckResponse> {
@@ -173,15 +177,12 @@ export async function toggleVote(
 }
 
 export async function fetchCategories(): Promise<Category[]> {
-  await sleep(200);
   return MOCK_CATEGORIES;
 }
 
 export async function fetchStatusCounts(
   params: Pick<FetchIdeasParams, "search" | "categories"> = {},
 ): Promise<StatusCounts> {
-  await sleep(120);
-
   const scopedIdeas = filterIdeas({ search: params.search, categories: params.categories });
 
   return scopedIdeas.reduce<StatusCounts>(

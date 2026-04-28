@@ -20,19 +20,17 @@ const statusConfig: Array<{
 
 export function StatusFilter({ selected, onChange, counts }: StatusFilterProps) {
   return (
-    <ul className="menu menu-sm rounded-box p-0 gap-0.5">
-      {/* "All" item */}
+    <ul className="menu rounded-box gap-2 p-0">
       <li>
         <button
           type="button"
           onClick={() => onChange([])}
-          className={selected.length === 0 ? "active font-semibold" : ""}
+          className={`min-h-12 rounded-xl px-4 text-sm ${selected.length === 0 ? "active font-semibold" : "font-medium"}`}
         >
           <span className="flex-1">All statuses</span>
         </button>
       </li>
 
-      {/* Individual statuses */}
       {statusConfig.map((status) => {
         const isActive = selected.includes(status.value);
         const count = counts?.[status.value];
@@ -48,12 +46,12 @@ export function StatusFilter({ selected, onChange, counts }: StatusFilterProps) 
                     : [...selected, status.value],
                 )
               }
-              className={isActive ? "active font-semibold" : ""}
+              className={`min-h-12 rounded-xl px-4 text-sm ${isActive ? "active font-semibold" : "font-medium"}`}
             >
-              <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${status.dotClass}`} />
+              <span className={`h-3 w-3 shrink-0 rounded-full ${status.dotClass}`} />
               <span className="flex-1">{status.label}</span>
               {typeof count === "number" ? (
-                <span className="badge badge-sm badge-ghost tabular-nums">
+                <span className="badge badge-md badge-ghost tabular-nums">
                   {count}
                 </span>
               ) : null}

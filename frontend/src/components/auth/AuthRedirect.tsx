@@ -1,18 +1,28 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { hasStoredSession } from "@/lib/authStorage";
+import { hasStoredSession, subscribeToAuthSession } from "@/lib/authStorage";
 
 export function AuthRedirect({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const isAuthenticated = useSyncExternalStore(
+    subscribeToAuthSession,
+    hasStoredSession,
+    () => false,
+  );
 
   useEffect(() => {
-    if (hasStoredSession()) {
-      router.replace(searchParams.get("next") || "/dashboard");
+    if (isAuthenticated) {
+      const requestedNextPath = searchParams.get("next");
+      const nextPath =
+        requestedNextPath && requestedNextPath.startsWith("/") && !requestedNextPath.startsWith("//")
+          ? requestedNextPath
+          : "/";
+      router.replace(nextPath);
     }
-  }, [router, searchParams]);
+  }, [isAuthenticated, router, searchParams]);
 
   return <>{children}</>;
 }

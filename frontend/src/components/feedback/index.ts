@@ -2,6 +2,7 @@ export * from "./CategoryFilterChips";
 export * from "./DuplicateWarning";
 export * from "./FeedbackPageClient";
 export * from "./IdeaCard";
+export * from "./IdeaDetailsModal";
 export * from "./IdeaList";
 export * from "./IdeaSearchBar";
 export * from "./SortControls";

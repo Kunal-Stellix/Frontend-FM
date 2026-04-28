@@ -1,7 +1,6 @@
 "use client";
 
-import { Loader2 } from "lucide-react";
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { searchIdeasByTitle, submitIdea } from "@/lib/feedbackApi";
 import type { Category, DuplicateCheckResponse, Idea } from "@/types/idea";
 import { DuplicateWarning } from "./DuplicateWarning";
@@ -25,6 +24,7 @@ export function SubmitIdeaModal({
   categories,
   listHref = "/ideas",
 }: SubmitIdeaModalProps) {
+  const duplicateCheckIdRef = useRef(0);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
@@ -44,28 +44,35 @@ export function SubmitIdeaModal({
     [description.length, isSubmitting, trimmedTitle.length],
   );
 
-  /* ── Duplicate detection ── */
   useEffect(() => {
     if (!isOpen || trimmedTitle.length < 3) {
       return;
     }
 
+    const currentCheckId = ++duplicateCheckIdRef.current;
     const timeoutId = window.setTimeout(async () => {
       try {
         setIsCheckingDuplicates(true);
         const result = await searchIdeasByTitle(trimmedTitle);
-        setDuplicates(result.duplicates);
+        if (duplicateCheckIdRef.current === currentCheckId) {
+          setDuplicates(result.duplicates);
+        }
       } catch {
-        setDuplicates([]);
+        if (duplicateCheckIdRef.current === currentCheckId) {
+          setDuplicates([]);
+        }
       } finally {
-        setIsCheckingDuplicates(false);
+        if (duplicateCheckIdRef.current === currentCheckId) {
+          setIsCheckingDuplicates(false);
+        }
       }
     }, 500);
 
-    return () => window.clearTimeout(timeoutId);
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
   }, [isOpen, trimmedTitle]);
 
-  /* ── Category toggle ── */
   const handleCategoryToggle = (categoryId: string) => {
     setSelectedCategoryIds((current) =>
       current.includes(categoryId)
@@ -74,7 +81,6 @@ export function SubmitIdeaModal({
     );
   };
 
-  /* ── Submit ── */
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setSubmitError(null);
@@ -115,15 +121,12 @@ export function SubmitIdeaModal({
   return (
     <dialog className="modal modal-open" open>
       <div className="modal-box max-w-2xl">
-        {/* Header */}
         <h3 className="text-xl font-bold text-base-content">Submit a new idea</h3>
         <p className="mt-1 text-sm text-base-content/60">
           Share the problem, why it matters, and any product area it belongs to.
         </p>
 
-        {/* Form */}
         <form id="submit-idea-form" className="mt-6 space-y-5" onSubmit={handleSubmit}>
-          {/* Errors */}
           {validationError ? (
             <div role="alert" className="alert alert-warning alert-sm">
               <span>{validationError}</span>
@@ -135,10 +138,9 @@ export function SubmitIdeaModal({
             </div>
           ) : null}
 
-          {/* Title */}
           <div className="form-control">
             <label className="label">
-              <span className="label-text font-medium inline-flex items-center gap-2">
+              <span className="label-text inline-flex items-center gap-2 font-medium">
                 Title
                 {isCheckingDuplicates ? (
                   <span className="loading loading-spinner loading-xs text-base-content/40" />
@@ -151,6 +153,7 @@ export function SubmitIdeaModal({
             <input
               type="text"
               value={title}
+              required
               disabled={isSubmitting}
               minLength={TITLE_MIN_LENGTH}
               maxLength={TITLE_MAX_LENGTH}
@@ -169,10 +172,8 @@ export function SubmitIdeaModal({
             />
           </div>
 
-          {/* Duplicate warning */}
           <DuplicateWarning duplicates={duplicates} listHref={listHref} />
 
-          {/* Description */}
           <div className="form-control">
             <label className="label">
               <span className="label-text font-medium">Description</span>
@@ -190,7 +191,6 @@ export function SubmitIdeaModal({
             />
           </div>
 
-          {/* Categories */}
           <div className="form-control">
             <label className="label">
               <span className="label-text font-medium">Categories</span>
@@ -220,7 +220,6 @@ export function SubmitIdeaModal({
           </div>
         </form>
 
-        {/* Actions */}
         <div className="modal-action">
           <button
             type="button"
@@ -239,7 +238,7 @@ export function SubmitIdeaModal({
             {isSubmitting ? (
               <>
                 <span className="loading loading-spinner loading-sm" />
-                Submitting…
+                Submitting...
               </>
             ) : (
               "Submit idea"

@@ -1,31 +1,67 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { FeedbackAvatar } from "@/components/ui";
-import { clearAuthSession, setAccessToken } from "@/api/client";
-import { getStoredAccessToken, hasStoredSession } from "@/lib/authStorage";
+import { getCurrentUser, logout, type UserResponse } from "@/api/auth";
+import { initializeAuthSession } from "@/api/client";
+import { hasStoredSession, subscribeToAuthSession } from "@/lib/authStorage";
 import { mainNavItems } from "@/lib/navigation";
 import { cn } from "@/lib/utils";
+
+const getInitials = (name: string) =>
+  name
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? "")
+    .join("") || "U";
 
 export function Navbar() {
   const pathname = usePathname();
   const router = useRouter();
-  const storedToken = getStoredAccessToken();
-  const isAuthenticated = hasStoredSession();
+  const [currentUser, setCurrentUser] = useState<UserResponse | null>(null);
+  const isAuthenticated = useSyncExternalStore(
+    subscribeToAuthSession,
+    hasStoredSession,
+    () => false,
+  );
   const feedbackCtaHref = isAuthenticated
     ? "/ideas?compose=1"
     : "/login?next=%2Fideas%3Fcompose%3D1";
 
   useEffect(() => {
-    if (storedToken) {
-      setAccessToken(storedToken);
-    }
-  }, [pathname, storedToken]);
+    initializeAuthSession();
+  }, [pathname]);
 
-  const handleLogout = () => {
-    clearAuthSession();
+  useEffect(() => {
+    if (!isAuthenticated) {
+      return;
+    }
+
+    let active = true;
+
+    void getCurrentUser()
+      .then((user) => {
+        if (active) {
+          setCurrentUser(user);
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setCurrentUser(null);
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [isAuthenticated]);
+
+  const handleLogout = async () => {
+    setCurrentUser(null);
+    await logout();
     router.replace("/login");
   };
 
@@ -69,9 +105,18 @@ export function Navbar() {
             {isAuthenticated ? (
               <div className="dropdown dropdown-end">
                 <div tabIndex={0} role="button" className="btn btn-ghost btn-circle p-1">
-                  <FeedbackAvatar name="User account" initials="U" size="sm" />
+                  <FeedbackAvatar
+                    name={currentUser?.name ?? "User account"}
+                    initials={getInitials(currentUser?.name ?? "User account")}
+                    size="sm"
+                  />
                 </div>
                 <ul tabIndex={0} className="mt-3 z-[1] p-2 shadow menu menu-sm dropdown-content bg-base-100 rounded-box w-52">
+                  {currentUser ? (
+                    <li className="menu-title">
+                      <span>{currentUser.name}</span>
+                    </li>
+                  ) : null}
                   <li><Link href="/dashboard">Dashboard</Link></li>
                   <li><Link href="/settings">Settings</Link></li>
                   <li><button className="text-error" onClick={handleLogout}>Logout</button></li>

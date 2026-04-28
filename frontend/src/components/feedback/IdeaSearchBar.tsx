@@ -1,7 +1,7 @@
 "use client";
 
 import { Search, X } from "lucide-react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 type IdeaSearchBarProps = {
   value: string;
@@ -11,6 +11,14 @@ type IdeaSearchBarProps = {
 export function IdeaSearchBar({ value, onChange }: IdeaSearchBarProps) {
   const [draft, setDraft] = useState(value);
   const debounceTimerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (debounceTimerRef.current) {
+        window.clearTimeout(debounceTimerRef.current);
+      }
+    };
+  }, []);
 
   const handleChange = (nextValue: string) => {
     setDraft(nextValue);
@@ -52,7 +60,7 @@ export function IdeaSearchBar({ value, onChange }: IdeaSearchBarProps) {
           <X className="h-3.5 w-3.5" />
         </button>
       ) : (
-        <kbd className="kbd kbd-sm text-base-content/30">⌘K</kbd>
+        <kbd className="kbd kbd-sm text-base-content/30">🔍︎</kbd>
       )}
     </label>
   );

@@ -1,5 +1,10 @@
+import { Suspense } from "react";
 import { FeedbackPageClient } from "@/components/feedback";
 
 export default function FeedbackPage() {
-  return <FeedbackPageClient />;
+  return (
+    <Suspense>
+      <FeedbackPageClient />
+    </Suspense>
+  );
 }

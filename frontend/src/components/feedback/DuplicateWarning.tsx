@@ -15,6 +15,14 @@ const statusLabels: Record<IdeaStatus, string> = {
   declined: "Declined",
 };
 
+const buildIdeaLink = (listHref: string, title: string) => {
+  const [pathname, queryString] = listHref.split("?");
+  const params = new URLSearchParams(queryString ?? "");
+  params.set("search", title);
+  const nextQuery = params.toString();
+  return nextQuery ? `${pathname}?${nextQuery}` : pathname;
+};
+
 export function DuplicateWarning({ duplicates, listHref = "/ideas" }: DuplicateWarningProps) {
   if (duplicates.length === 0) {
     return null;
@@ -22,7 +30,7 @@ export function DuplicateWarning({ duplicates, listHref = "/ideas" }: DuplicateW
 
   return (
     <div role="alert" className="alert alert-warning alert-sm">
-      <AlertTriangle className="h-4 w-4 flex-shrink-0" />
+      <AlertTriangle className="h-4 w-4 shrink-0" />
       <div className="flex-1 space-y-2">
         <p className="text-sm font-semibold">Similar ideas already exist</p>
         <ul className="space-y-1.5">
@@ -32,7 +40,7 @@ export function DuplicateWarning({ duplicates, listHref = "/ideas" }: DuplicateW
               className="flex items-center justify-between gap-3 rounded-lg bg-base-100/60 px-3 py-2 text-sm"
             >
               <div className="min-w-0">
-                <p className="font-medium text-base-content truncate">
+                <p className="truncate font-medium text-base-content">
                   {idea.title}
                 </p>
                 <p className="text-xs text-base-content/60">
@@ -40,8 +48,8 @@ export function DuplicateWarning({ duplicates, listHref = "/ideas" }: DuplicateW
                 </p>
               </div>
               <Link
-                href={listHref}
-                className="link link-primary text-xs flex-shrink-0"
+                href={buildIdeaLink(listHref, idea.title)}
+                className="link link-primary shrink-0 text-xs"
               >
                 View
               </Link>
