@@ -4,16 +4,13 @@ import Link from "next/link";
 import axios from "axios";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { apiClient, setAccessToken, setRefreshToken } from "@/lib/apiClient";
+import { register } from "@/api/auth";
+import { setAccessToken } from "@/api/client";
 import { getStoredAccessToken, getStoredRefreshToken } from "@/lib/authStorage";
 import { Mail, Lock, User, ArrowRight, Loader2, Sparkles, CheckCircle2 } from "lucide-react";
 
-type AuthResponse = {
-  access_token?: string;
-  refresh_token?: string;
-};
-
 type ApiErrorResponse = {
+  detail?: string;
   message?: string;
 };
 
@@ -42,21 +39,12 @@ export function RegisterView() {
     setError(null);
 
     try {
-      const response = await apiClient.post<AuthResponse>("/auth/register", formData);
-
-      if (response.data?.access_token) {
-        setAccessToken(response.data.access_token);
-      }
-
-      if (response.data?.refresh_token) {
-        setRefreshToken(response.data.refresh_token);
-      }
-
+      await register(formData);
       router.replace("/dashboard");
       router.refresh();
     } catch (err: unknown) {
       const message = axios.isAxiosError<ApiErrorResponse>(err)
-        ? err.response?.data?.message
+        ? err.response?.data?.detail ?? err.response?.data?.message
         : undefined;
       setError(message || "Something went wrong. Please try again.");
     } finally {

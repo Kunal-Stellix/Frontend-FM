@@ -4,8 +4,8 @@ import Link from "next/link";
 import { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { FeedbackAvatar } from "@/components/ui";
+import { clearAuthSession, setAccessToken } from "@/api/client";
 import { getStoredAccessToken, hasStoredSession } from "@/lib/authStorage";
-import { clearAuthSession, setAccessToken } from "@/lib/apiClient";
 import { mainNavItems } from "@/lib/navigation";
 import { cn } from "@/lib/utils";
 
@@ -14,6 +14,9 @@ export function Navbar() {
   const router = useRouter();
   const storedToken = getStoredAccessToken();
   const isAuthenticated = hasStoredSession();
+  const feedbackCtaHref = isAuthenticated
+    ? "/ideas?compose=1"
+    : "/login?next=%2Fideas%3Fcompose%3D1";
 
   useEffect(() => {
     if (storedToken) {
@@ -59,7 +62,7 @@ export function Navbar() {
           </div>
 
           <div className="main-navbar-actions flex items-center gap-4">
-            <Link href="/ideas/new" className="btn btn-primary btn-sm">
+            <Link href={feedbackCtaHref} className="btn btn-primary btn-sm">
               Give Feedback
             </Link>
             

@@ -1,17 +1,18 @@
 "use client";
 
 import { useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { hasStoredSession } from "@/lib/authStorage";
 
 export function AuthRedirect({ children }: { children: React.ReactNode }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   useEffect(() => {
     if (hasStoredSession()) {
-      router.replace("/dashboard");
+      router.replace(searchParams.get("next") || "/dashboard");
     }
-  }, [router]);
+  }, [router, searchParams]);
 
   return <>{children}</>;
 }
