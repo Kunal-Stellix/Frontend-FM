@@ -1,24 +1,23 @@
 # Product Feedback Platform
 
-Monorepo-style integration branch for the feedback platform.
+Integrated development branch for the product feedback platform.
 
-## Included Apps
-- Frontend: Next.js application in the repository root
-- Backend: FastAPI service under `app/`
+## Structure
+- Frontend: Next.js app in the repository root and `src/`
+- Backend: FastAPI app under `app/`
 
-## Frontend Quickstart
+## Frontend
 ```bash
 npm install
 npm run dev
 ```
 
-## Backend Quickstart
+Runs on `http://localhost:3000` by default.
+
+## Backend
 ```bash
 cp .env.example .env
 docker compose up --build
 ```
 
-## Default Local URLs
-- Frontend: http://localhost:3000
-- Backend API: http://localhost:8000
-- API Docs: http://localhost:8000/docs
+Runs on `http://localhost:8000` with docs at `http://localhost:8000/docs`.
