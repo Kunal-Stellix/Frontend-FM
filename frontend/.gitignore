@@ -1,0 +1,14 @@
+node_modules
+.next
+.env.local
+.env
+.env.example
+.DS_Store
+*.log
+dist
+build
+coverage
+
+# Ignore IDE specific files
+.vscode/
+.idea/
