@@ -56,11 +56,17 @@ class Idea(Base):
     )
 
     # Relationships
-    author: Mapped["User"] = relationship("User", back_populates="ideas")
-    category: Mapped["Category"] = relationship("Category", back_populates="ideas")
-    votes: Mapped[list["Vote"]] = relationship("Vote", back_populates="idea", cascade="all, delete-orphan")
-    followers: Mapped[list["Follower"]] = relationship("Follower", back_populates="idea", cascade="all, delete-orphan")
-
+    author = relationship("User", back_populates="ideas")
+    category = relationship("Category", back_populates="ideas")
+    votes = relationship("Vote", back_populates="idea", cascade="all, delete-orphan")
+    followers = relationship("Follower", back_populates="idea", cascade="all, delete-orphan")
+    comments = relationship("Comment", back_populates="idea", cascade="all, delete-orphan")
+    roadmap_items = relationship(
+    "RoadmapItem",
+    secondary="roadmap_idea_links",
+    back_populates="linked_ideas",
+    )
+    
     # Indexes
     __table_args__ = (
         Index("ix_ideas_status", "status"),

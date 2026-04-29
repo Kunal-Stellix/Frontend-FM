@@ -24,7 +24,7 @@ class Category(Base):
         nullable=False,
     )
 
-    ideas: Mapped[list["Idea"]] = relationship("Idea", back_populates="category")
+    ideas = relationship("Idea", back_populates="category")
 
     def __repr__(self) -> str:
         return f"<Category id={self.id} name={self.name}>"
