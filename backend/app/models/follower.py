@@ -26,8 +26,8 @@ class Follower(Base):
     )
 
     # Relationships
-    user: Mapped["User"] = relationship("User", back_populates="followers")
-    idea: Mapped["Idea"] = relationship("Idea", back_populates="followers")
+    user = relationship("User", back_populates="followers")
+    idea = relationship("Idea", back_populates="followers")
 
     def __repr__(self) -> str:
         return f"<Follower user={self.user_id} idea={self.idea_id}>"

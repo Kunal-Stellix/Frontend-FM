@@ -32,8 +32,8 @@ class Vote(Base):
     )
 
     # Relationships
-    user: Mapped["User"] = relationship("User", back_populates="votes")
-    idea: Mapped["Idea"] = relationship("Idea", back_populates="votes")
+    user = relationship("User", back_populates="votes")
+    idea = relationship("Idea", back_populates="votes")
 
     __table_args__ = (
         UniqueConstraint("user_id", "idea_id", name="uq_votes_user_idea"),
