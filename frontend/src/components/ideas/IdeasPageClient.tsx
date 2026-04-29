@@ -76,7 +76,7 @@ const statusParams = (value: string | null): IdeaStatus[] =>
     STATUS_OPTIONS.includes(item as IdeaStatus),
   );
 
-export function FeedbackPageClient() {
+export function IdeasPageClient() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -154,16 +154,24 @@ export function FeedbackPageClient() {
 
   useEffect(() => {
     const loadCategories = async () => {
-      const nextCategories = await fetchCategories();
-      setAvailableCategories(nextCategories);
+      try {
+        const nextCategories = await fetchCategories();
+        setAvailableCategories(nextCategories);
+      } catch {
+        setAvailableCategories([]);
+      }
     };
     void loadCategories();
   }, []);
 
   useEffect(() => {
     const loadStatusCounts = async () => {
-      const counts = await fetchStatusCounts({ search, categories });
-      setStatusCounts(counts);
+      try {
+        const counts = await fetchStatusCounts({ search, categories });
+        setStatusCounts(counts);
+      } catch {
+        setStatusCounts(null);
+      }
     };
     void loadStatusCounts();
   }, [categories, search]);
@@ -222,7 +230,7 @@ export function FeedbackPageClient() {
           setDetailState({
             ideaId: requestedIdeaId,
             idea: null,
-            error: "We couldn't find that idea in the current mock dataset.",
+            error: "We couldn't find that idea.",
           });
           return;
         }
@@ -352,7 +360,7 @@ export function FeedbackPageClient() {
     );
 
     try {
-      const result = await toggleVote(ideaId);
+      const result = await toggleVote(ideaId, snapshot.hasVoted);
       setIdeas((current) =>
         current.map((idea) =>
           idea.id === ideaId
@@ -431,6 +439,7 @@ export function FeedbackPageClient() {
       </div>
 
       <IdeaSearchBar
+        key={search}
         value={search}
         onChange={(value) => replaceQuery({ search: value, page: 1 })}
       />

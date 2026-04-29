@@ -12,3 +12,6 @@ coverage
 # Ignore IDE specific files
 .vscode/
 .idea/
+
+# md files
+*.md

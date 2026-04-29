@@ -13,9 +13,9 @@ type SubmitIdeaModalProps = {
   listHref?: string;
 };
 
-const TITLE_MIN_LENGTH = 10;
-const TITLE_MAX_LENGTH = 150;
-const DESCRIPTION_MAX_LENGTH = 1000;
+const TITLE_MIN_LENGTH = 3;
+const TITLE_MAX_LENGTH = 255;
+const DESCRIPTION_MAX_LENGTH = 5000;
 
 export function SubmitIdeaModal({
   isOpen,
@@ -27,7 +27,7 @@ export function SubmitIdeaModal({
   const duplicateCheckIdRef = useRef(0);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   const [duplicates, setDuplicates] = useState<DuplicateCheckResponse["duplicates"]>([]);
   const [isCheckingDuplicates, setIsCheckingDuplicates] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -45,7 +45,7 @@ export function SubmitIdeaModal({
   );
 
   useEffect(() => {
-    if (!isOpen || trimmedTitle.length < 3) {
+    if (!isOpen || trimmedTitle.length < 2) {
       return;
     }
 
@@ -74,11 +74,7 @@ export function SubmitIdeaModal({
   }, [isOpen, trimmedTitle]);
 
   const handleCategoryToggle = (categoryId: string) => {
-    setSelectedCategoryIds((current) =>
-      current.includes(categoryId)
-        ? current.filter((id) => id !== categoryId)
-        : [...current, categoryId],
-    );
+    setSelectedCategoryId((current) => (current === categoryId ? null : categoryId));
   };
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -104,7 +100,7 @@ export function SubmitIdeaModal({
       const newIdea = await submitIdea({
         title: trimmedTitle,
         description: description.trim() || undefined,
-        categoryIds: selectedCategoryIds,
+        categoryId: selectedCategoryId,
       });
       onSuccess(newIdea);
       onClose();
@@ -164,7 +160,7 @@ export function SubmitIdeaModal({
                 setTitle(nextTitle);
                 setValidationError(null);
                 setSubmitError(null);
-                if (nextTitle.trim().length < 3) {
+                if (nextTitle.trim().length < 2) {
                   setDuplicates([]);
                   setIsCheckingDuplicates(false);
                 }
@@ -198,7 +194,7 @@ export function SubmitIdeaModal({
             </label>
             <div className="flex flex-wrap gap-2">
               {categories.map((category) => {
-                const isActive = selectedCategoryIds.includes(category.id);
+                const isActive = selectedCategoryId === category.id;
 
                 return (
                   <button
