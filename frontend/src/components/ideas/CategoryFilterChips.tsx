@@ -1,3 +1,4 @@
+import { Hash, Check } from "lucide-react";
 import type { Category } from "@/types/idea";
 
 type CategoryFilterChipsProps = {
@@ -12,15 +13,19 @@ export function CategoryFilterChips({
   onChange,
 }: CategoryFilterChipsProps) {
   return (
-    <ul className="menu rounded-box gap-2 p-0">
+    <ul className="flex flex-col gap-1">
       <li>
         <button
           type="button"
           onClick={() => onChange([])}
-          className={`min-h-12 rounded-xl px-4 text-sm ${selected.length === 0 ? "active font-semibold" : "font-medium"}`}
+          className={`group flex w-full items-center min-h-10 rounded-lg px-2 text-sm transition-colors hover:bg-base-200/60 ${
+            selected.length === 0
+              ? "bg-base-200/40 font-bold text-base-content"
+              : "font-medium text-base-content/70"
+          }`}
         >
-          <span className="flex-1">All categories</span>
-          <span className="badge badge-md badge-ghost">
+          <span className="flex-1 text-left">All Topics</span>
+          <span className="text-xs font-semibold tabular-nums text-base-content/40 group-hover:text-base-content/60">
             {categories.length}
           </span>
         </button>
@@ -40,15 +45,15 @@ export function CategoryFilterChips({
                     : [...selected, category.slug],
                 )
               }
-              className={`min-h-12 rounded-xl px-4 text-sm ${isActive ? "active font-semibold" : "font-medium"}`}
+              className={`group flex w-full items-center gap-3 min-h-10 rounded-lg px-2 text-sm transition-colors hover:bg-base-200/60 ${
+                isActive
+                  ? "bg-base-200/40 font-bold text-base-content"
+                  : "font-medium text-base-content/70"
+              }`}
             >
-              {category.color ? (
-                <span
-                  className="h-3 w-3 shrink-0 rounded-full"
-                  style={{ backgroundColor: category.color }}
-                />
-              ) : null}
-              <span className="flex-1">{category.label}</span>
+              <Hash className={`h-4 w-4 shrink-0 transition-colors ${isActive ? "text-primary" : "text-base-content/30 group-hover:text-base-content/50"}`} />
+              <span className="flex-1 text-left">{category.label}</span>
+              {isActive && <Check className="h-4 w-4 shrink-0 text-primary" />}
             </button>
           </li>
         );

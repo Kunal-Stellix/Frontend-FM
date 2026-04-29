@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { Paperclip, X } from "lucide-react";
 import { searchIdeasByTitle, submitIdea } from "@/lib/feedbackApi";
 import type { Category, DuplicateCheckResponse, Idea } from "@/types/idea";
 import { DuplicateWarning } from "./DuplicateWarning";
@@ -16,6 +17,12 @@ type SubmitIdeaModalProps = {
 const TITLE_MIN_LENGTH = 3;
 const TITLE_MAX_LENGTH = 255;
 const DESCRIPTION_MAX_LENGTH = 5000;
+const DESCRIPTION_MAX_WORDS = 300;
+
+const countWords = (text: string) => {
+  const trimmed = text.trim();
+  return trimmed ? trimmed.split(/\s+/).length : 0;
+};
 
 export function SubmitIdeaModal({
   isOpen,
@@ -27,7 +34,7 @@ export function SubmitIdeaModal({
   const duplicateCheckIdRef = useRef(0);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
+  const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
   const [duplicates, setDuplicates] = useState<DuplicateCheckResponse["duplicates"]>([]);
   const [isCheckingDuplicates, setIsCheckingDuplicates] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -35,13 +42,15 @@ export function SubmitIdeaModal({
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const trimmedTitle = title.trim();
+  const wordCount = countWords(description);
   const canSubmit = useMemo(
     () =>
       trimmedTitle.length >= TITLE_MIN_LENGTH &&
       trimmedTitle.length <= TITLE_MAX_LENGTH &&
       description.length <= DESCRIPTION_MAX_LENGTH &&
+      wordCount <= DESCRIPTION_MAX_WORDS &&
       !isSubmitting,
-    [description.length, isSubmitting, trimmedTitle.length],
+    [description.length, isSubmitting, trimmedTitle.length, wordCount],
   );
 
   useEffect(() => {
@@ -74,7 +83,15 @@ export function SubmitIdeaModal({
   }, [isOpen, trimmedTitle]);
 
   const handleCategoryToggle = (categoryId: string) => {
-    setSelectedCategoryId((current) => (current === categoryId ? null : categoryId));
+    setSelectedCategoryIds((current) => {
+      if (current.includes(categoryId)) {
+        return current.filter((id) => id !== categoryId);
+      }
+      if (current.length >= 3) {
+        return current;
+      }
+      return [...current, categoryId];
+    });
   };
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -93,6 +110,10 @@ export function SubmitIdeaModal({
       setValidationError(`Description must be ${DESCRIPTION_MAX_LENGTH} characters or fewer.`);
       return;
     }
+    if (wordCount > DESCRIPTION_MAX_WORDS) {
+      setValidationError(`Description must be ${DESCRIPTION_MAX_WORDS} words or fewer.`);
+      return;
+    }
 
     try {
       setValidationError(null);
@@ -100,7 +121,7 @@ export function SubmitIdeaModal({
       const newIdea = await submitIdea({
         title: trimmedTitle,
         description: description.trim() || undefined,
-        categoryId: selectedCategoryId,
+        categoryId: selectedCategoryIds[0] || null,
       });
       onSuccess(newIdea);
       onClose();
@@ -115,14 +136,19 @@ export function SubmitIdeaModal({
   if (!isOpen) return null;
 
   return (
-    <dialog className="modal modal-open" open>
-      <div className="modal-box max-w-2xl">
-        <h3 className="text-xl font-bold text-base-content">Submit a new idea</h3>
-        <p className="mt-1 text-sm text-base-content/60">
-          Share the problem, why it matters, and any product area it belongs to.
-        </p>
+    <dialog className={`modal ${isOpen ? "modal-open" : ""}`} open={isOpen}>
+      <div className="modal-box absolute right-0 top-0 m-0 h-full max-h-screen w-full max-w-[500px] rounded-none !scale-100 !translate-y-0 p-8 shadow-2xl overflow-y-auto">
+        <button
+          type="button"
+          className="btn btn-sm btn-circle btn-ghost absolute right-6 top-6 border border-base-300 text-base-content/50 hover:border-base-400 hover:text-base-content"
+          onClick={onClose}
+        >
+          <X className="h-4 w-4" />
+        </button>
 
-        <form id="submit-idea-form" className="mt-6 space-y-5" onSubmit={handleSubmit}>
+        <h3 className="mt-2 text-2xl font-bold text-base-content">Tell us your Idea!</h3>
+
+        <form id="submit-idea-form" className="mt-8 space-y-6" onSubmit={handleSubmit}>
           {validationError ? (
             <div role="alert" className="alert alert-warning alert-sm">
               <span>{validationError}</span>
@@ -135,17 +161,6 @@ export function SubmitIdeaModal({
           ) : null}
 
           <div className="form-control">
-            <label className="label">
-              <span className="label-text inline-flex items-center gap-2 font-medium">
-                Title
-                {isCheckingDuplicates ? (
-                  <span className="loading loading-spinner loading-xs text-base-content/40" />
-                ) : null}
-              </span>
-              <span className="label-text-alt tabular-nums">
-                {title.length}/{TITLE_MAX_LENGTH}
-              </span>
-            </label>
             <input
               type="text"
               value={title}
@@ -153,7 +168,7 @@ export function SubmitIdeaModal({
               disabled={isSubmitting}
               minLength={TITLE_MIN_LENGTH}
               maxLength={TITLE_MAX_LENGTH}
-              placeholder="Summarize the idea in one sentence"
+              placeholder="One sentence that summarizes your Idea"
               className="input input-bordered w-full"
               onChange={(event) => {
                 const nextTitle = event.target.value;
@@ -170,31 +185,51 @@ export function SubmitIdeaModal({
 
           <DuplicateWarning duplicates={duplicates} listHref={listHref} />
 
-          <div className="form-control">
-            <label className="label">
-              <span className="label-text font-medium">Description</span>
-              <span className="label-text-alt tabular-nums">
-                {description.length}/{DESCRIPTION_MAX_LENGTH}
+          <div className="form-control relative">
+            <div className="mb-1 flex items-center justify-between px-1">
+              <span className="text-xs text-base-content/0"></span>
+              <span className={`text-xs tabular-nums ${wordCount > DESCRIPTION_MAX_WORDS ? 'text-error font-bold' : 'text-base-content/50'}`}>
+                {wordCount} / {DESCRIPTION_MAX_WORDS} words
               </span>
-            </label>
+            </div>
             <textarea
               value={description}
               disabled={isSubmitting}
               maxLength={DESCRIPTION_MAX_LENGTH}
-              placeholder="Describe the workflow or customer problem this idea would solve."
-              className="textarea textarea-bordered min-h-32 w-full"
-              onChange={(event) => setDescription(event.target.value)}
+              placeholder="Why your Idea is useful, who would benefit and how it should work?"
+              className="textarea textarea-bordered min-h-40 w-full resize-none pb-10"
+              onChange={(event) => {
+                const nextVal = event.target.value;
+                
+                // Allow Deletion: always allow backspace/delete
+                if (nextVal.length < description.length) {
+                  setDescription(nextVal);
+                  return;
+                }
+
+                // The LogicSplit & Count: On every keystroke, we split the text and count
+                const nextWordCount = countWords(nextVal);
+
+                // The "Hard Stop": If word count is > 300 and user is adding text
+                if (nextWordCount > DESCRIPTION_MAX_WORDS) {
+                  return; // Prevent the update entirely
+                }
+
+                setDescription(nextVal);
+              }}
             />
+            <Paperclip className="absolute bottom-3 right-3 h-4 w-4 text-base-content/40" />
           </div>
 
           <div className="form-control">
-            <label className="label">
-              <span className="label-text font-medium">Categories</span>
-              <span className="label-text-alt">Optional</span>
+            <label className="label mb-1 px-0">
+              <span className="label-text text-base-content/70">
+                Choose up to 3 Topics for this Idea
+              </span>
             </label>
             <div className="flex flex-wrap gap-2">
               {categories.map((category) => {
-                const isActive = selectedCategoryId === category.id;
+                const isActive = selectedCategoryIds.includes(category.id);
 
                 return (
                   <button
@@ -202,10 +237,10 @@ export function SubmitIdeaModal({
                     type="button"
                     disabled={isSubmitting}
                     onClick={() => handleCategoryToggle(category.id)}
-                    className={`badge badge-lg cursor-pointer transition ${
+                    className={`btn btn-sm rounded-xl font-normal transition-colors ${
                       isActive
-                        ? "badge-primary"
-                        : "badge-outline hover:badge-primary hover:badge-outline"
+                        ? "btn-primary"
+                        : "border-base-300 bg-base-100 text-base-content hover:border-base-400 hover:bg-base-200"
                     }`}
                   >
                     {category.label}
@@ -216,19 +251,11 @@ export function SubmitIdeaModal({
           </div>
         </form>
 
-        <div className="modal-action">
-          <button
-            type="button"
-            className="btn btn-ghost"
-            onClick={onClose}
-            disabled={isSubmitting}
-          >
-            Cancel
-          </button>
+        <div className="modal-action mt-8 border-t border-base-200 pt-6">
           <button
             type="submit"
             form="submit-idea-form"
-            className="btn btn-primary"
+            className="btn btn-primary ml-auto"
             disabled={!canSubmit}
           >
             {isSubmitting ? (
@@ -237,13 +264,15 @@ export function SubmitIdeaModal({
                 Submitting...
               </>
             ) : (
-              "Submit idea"
+              "Submit Idea"
             )}
           </button>
         </div>
       </div>
       <form method="dialog" className="modal-backdrop">
-        <button type="button" onClick={onClose}>close</button>
+        <button type="button" onClick={onClose}>
+          close
+        </button>
       </form>
     </dialog>
   );

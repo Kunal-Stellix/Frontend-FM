@@ -10,6 +10,7 @@ type VoteButtonProps = {
   onToggle: (ideaId: string) => void;
   isLoggedIn: boolean;
   loading?: boolean;
+  className?: string;
 };
 
 export function VoteButton({
@@ -19,6 +20,7 @@ export function VoteButton({
   onToggle,
   isLoggedIn,
   loading = false,
+  className,
 }: VoteButtonProps) {
   return (
     <button
@@ -36,6 +38,7 @@ export function VoteButton({
           ? "btn-primary shadow-sm"
           : "btn-ghost border-base-300 hover:border-primary/50 hover:bg-primary/5",
         loading && "opacity-60 pointer-events-none",
+        className
       )}
     >
       {loading ? (

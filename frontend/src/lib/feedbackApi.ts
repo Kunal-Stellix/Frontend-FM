@@ -1,7 +1,11 @@
 import axios from "axios";
 import { apiClient } from "@/lib/apiClient";
+import { hasStoredSession } from "@/lib/authStorage";
 import type {
   ApiCategory,
+  ApiComment,
+  ApiCommentListResponse,
+  ApiCreateCommentRequest,
   ApiCreateIdeaRequest,
   ApiIdea,
   ApiIdeaListResponse,
@@ -9,10 +13,12 @@ import type {
   ApiIdeaStatus,
   ApiVoteResponse,
   Category,
+  Comment,
   DuplicateCheckResponse,
   Idea,
   IdeaListResponse,
   IdeaStatus,
+  RoadmapItem,
   SortOption,
   SubmitIdeaPayload,
 } from "@/types/idea";
@@ -52,10 +58,10 @@ const FRONTEND_TO_API_SORT: Record<SortOption, ApiIdeaSortOption> = {
 };
 
 const FRONTEND_TO_API_STATUSES: Record<IdeaStatus, ApiIdeaStatus[]> = {
-  under_review: ["idea", "under-review"],
+  under_review: ["under_review"],
   planned: ["planned"],
-  in_progress: ["in-progress"],
-  shipped: ["completed"],
+  in_progress: ["in_progress"],
+  shipped: ["shipped"],
   declined: ["declined"],
 };
 
@@ -90,14 +96,16 @@ const mapApiCategory = (category: ApiCategory): Category => ({
 
 const mapApiStatusToIdeaStatus = (status: ApiIdeaStatus): IdeaStatus => {
   switch (status) {
+    case "under_review":
+      return "under_review";
     case "planned":
       return "planned";
-    case "in-progress":
+    case "in_progress":
       return "in_progress";
-    case "completed":
+    case "shipped":
       return "shipped";
-    case "idea":
-    case "under-review":
+    case "declined":
+      return "declined";
     default:
       return "under_review";
   }
@@ -118,6 +126,34 @@ const mapApiIdea = (idea: ApiIdea): Idea => ({
   createdAt: idea.created_at,
   updatedAt: idea.updated_at,
 });
+
+const mapApiComment = (comment: ApiComment): Comment => ({
+  id: comment.id,
+  ideaId: comment.idea_id,
+  content: comment.content,
+  authorId: comment.author.id,
+  authorName: comment.author.name,
+  authorAvatar: comment.author.avatar_url,
+  parentId: comment.parent_id,
+  createdAt: comment.created_at,
+});
+
+const syncIdeaVoteStatus = async (idea: Idea) => {
+  try {
+    const response = await apiClient.get<{ voted: boolean }>(`/ideas/${idea.id}/vote`);
+    return { ...idea, hasVoted: response.data.voted };
+  } catch {
+    return idea;
+  }
+};
+
+const syncIdeasVoteStatus = async (ideas: Idea[]) => {
+  if (!hasStoredSession() || ideas.length === 0) {
+    return ideas;
+  }
+
+  return Promise.all(ideas.map(syncIdeaVoteStatus));
+};
 
 const sortIdeas = (ideas: Idea[], sort: SortOption) => {
   const nextIdeas = [...ideas];
@@ -150,8 +186,8 @@ const dedupeIdeas = (ideas: Idea[]) => {
   });
 };
 
-const mapIdeaListResponse = (response: ApiIdeaListResponse): IdeaListResponse => ({
-  ideas: response.items.map(mapApiIdea),
+const mapIdeaListResponse = async (response: ApiIdeaListResponse): Promise<IdeaListResponse> => ({
+  ideas: await syncIdeasVoteStatus(response.items.map(mapApiIdea)),
   total: response.total,
   page: response.page,
   pageSize: response.page_size,
@@ -318,10 +354,10 @@ export async function fetchIdeas(params: FetchIdeasParams = {}): Promise<IdeaLis
         page,
         pageSize,
       });
-      return mapIdeaListResponse(response);
+      return await mapIdeaListResponse(response);
     }
 
-    const aggregatedIdeas = dedupeIdeas(
+    const aggregatedIdeas = await syncIdeasVoteStatus(dedupeIdeas(
       (
         await Promise.all(
           variants.map((variant) =>
@@ -332,7 +368,7 @@ export async function fetchIdeas(params: FetchIdeasParams = {}): Promise<IdeaLis
           ),
         )
       ).flat(),
-    );
+    ));
 
     const sortedIdeas = sortIdeas(aggregatedIdeas, sort);
     const start = (page - 1) * pageSize;
@@ -353,7 +389,8 @@ export async function fetchIdeas(params: FetchIdeasParams = {}): Promise<IdeaLis
 export async function fetchIdeaById(ideaId: string): Promise<Idea | null> {
   try {
     const response = await apiClient.get<ApiIdea>(`/ideas/${ideaId}`);
-    return mapApiIdea(response.data);
+    const idea = mapApiIdea(response.data);
+    return hasStoredSession() ? await syncIdeaVoteStatus(idea) : idea;
   } catch (error) {
     if (axios.isAxiosError(error) && error.response?.status === 404) {
       return null;
@@ -403,7 +440,8 @@ export async function submitIdea(payload: SubmitIdeaPayload): Promise<Idea> {
 
   try {
     const response = await apiClient.post<ApiIdea>("/ideas", requestBody);
-    return mapApiIdea(response.data);
+    const idea = mapApiIdea(response.data);
+    return hasStoredSession() ? await syncIdeaVoteStatus(idea) : idea;
   } catch (error) {
     throw new Error(getErrorMessage(error, "Unable to submit your idea."));
   }
@@ -424,6 +462,15 @@ export async function toggleVote(
     };
   } catch (error) {
     throw new Error(getErrorMessage(error, "Unable to update vote right now."));
+  }
+}
+
+export async function getVoteStatus(ideaId: string): Promise<{ hasVoted: boolean }> {
+  try {
+    const response = await apiClient.get<{ voted: boolean }>(`/ideas/${ideaId}/vote`);
+    return { hasVoted: response.data.voted };
+  } catch (error) {
+    throw new Error(getErrorMessage(error, "Unable to load vote status."));
   }
 }
 
@@ -470,5 +517,44 @@ export async function fetchStatusCounts(
     return counts;
   } catch (error) {
     throw new Error(getErrorMessage(error, "Unable to load status counts."));
+  }
+}
+
+export async function fetchIdeaComments(ideaId: string): Promise<Comment[]> {
+  try {
+    const response = await apiClient.get<ApiCommentListResponse>(`/ideas/${ideaId}/comments`);
+    return response.data.items.map(mapApiComment);
+  } catch (error) {
+    throw new Error(getErrorMessage(error, "Unable to load comments."));
+  }
+}
+
+export async function submitComment(
+  ideaId: string,
+  payload: { content: string; parentId?: string | null }
+): Promise<Comment> {
+  const requestBody: ApiCreateCommentRequest = {
+    content: payload.content.trim(),
+    parent_id: payload.parentId || null,
+  };
+
+  try {
+    const response = await apiClient.post<ApiComment>(`/ideas/${ideaId}/comments`, requestBody);
+    return mapApiComment(response.data);
+  } catch (error) {
+    throw new Error(getErrorMessage(error, "Unable to post your comment."));
+  }
+}
+
+export async function fetchRoadmap(): Promise<RoadmapItem[]> {
+  try {
+    const response = await fetchIdeas({
+      statuses: ["planned", "in_progress", "shipped"],
+      pageSize: 100,
+      sort: "most_votes",
+    });
+    return response.ideas;
+  } catch (error) {
+    throw new Error(getErrorMessage(error, "Unable to load roadmap."));
   }
 }
