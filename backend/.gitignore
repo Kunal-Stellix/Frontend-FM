@@ -12,3 +12,13 @@ build/
 *.sqlite3
 .DS_Store
 poetry.lock
+API_INTEGRATION_GUIDE.md
+test_trigger_full.py
+test_updated_at_trigger.py
+verify_trigger.py
+AUDIT_AND_FIXES_SUMMARY.md
+AUDIT_REPORT.md
+FINAL_SPEC_VERIFICATION.md
+MIGRATION_FIX_DOCUMENTATION.md
+QUICK_FIX_SUMMARY.txt
+SPEC_COMPLIANCE_100_PERCENT.md

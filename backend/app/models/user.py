@@ -3,7 +3,7 @@ from enum import Enum
 import uuid
 
 from sqlalchemy import String, Boolean, DateTime, Text, Enum as SAEnum, func
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.dialects.postgresql import UUID
 
 from app.core.database import Base
@@ -55,6 +55,11 @@ class User(Base):
         onupdate=lambda: datetime.now(timezone.utc),
         nullable=False,
     )
+
+    # User model mein yeh relationships add karo (end mein)
+    ideas: Mapped[list["Idea"]] = relationship("Idea", back_populates="author")
+    votes: Mapped[list["Vote"]] = relationship("Vote", back_populates="user")
+    followers: Mapped[list["Follower"]] = relationship("Follower", back_populates="user")
 
     def __repr__(self) -> str:
         return f"<User id={self.id} email={self.email}>"
