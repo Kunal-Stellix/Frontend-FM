@@ -10,7 +10,7 @@ from app.models.comment import Comment
 from app.models.idea import Idea
 from app.models.user import User
 from app.models.follower import Follower
-from app.models.notification import Notification
+# from app.models.notification import Notification
 from app.schemas.comment import CommentCreate, CommentListResponse, CommentResponse
 
 
@@ -97,24 +97,24 @@ class CommentService:
 
         self.db.add(comment)
         await self.db.commit()
-        await self.db.refresh(comment)
+        # await self.db.refresh(comment)
 
         # Notification Logic
-        stmt = select(Follower).where(Follower.idea_id == idea_id)
-        result = await self.db.execute(stmt)
-        followers = result.scalars().all()
+        # stmt = select(Follower).where(Follower.idea_id == idea_id)
+        # result = await self.db.execute(stmt)
+        # followers = result.scalars().all()
 
-        for follower in followers:
-            # Don't notify the person who commented
-            if follower.user_id != current_user.id:
-                notification = Notification(
-                    user_id=follower.user_id,
-                    message=f"New comment on: {idea.title}",
-                    action_url=f"/ideas/{idea_id}"
-                )
-                self.db.add(notification)
+        # for follower in followers:
+        #     # Don't notify the person who commented
+        #     if follower.user_id != current_user.id:
+        #         notification = Notification(
+        #             user_id=follower.user_id,
+        #             message=f"New comment on: {idea.title}",
+        #             action_url=f"/ideas/{idea_id}"
+        #         )
+        #         self.db.add(notification)
         
-        await self.db.commit()
+        # await self.db.commit()
         
         
 
