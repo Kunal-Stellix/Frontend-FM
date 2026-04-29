@@ -1,10 +1,5 @@
-import { Suspense } from "react";
-import { FeedbackPageClient } from "@/components/feedback";
+import { redirect } from "next/navigation";
 
 export default function FeedbackPage() {
-  return (
-    <Suspense>
-      <FeedbackPageClient />
-    </Suspense>
-  );
+  redirect("/ideas");
 }

@@ -2,7 +2,7 @@ import axios from "axios";
 import type { InternalAxiosRequestConfig } from "axios";
 import { env } from "@/config/env";
 import { tokenConfig } from "@/config/tokenConfig";
-import type { AccessTokenResponse, RefreshRequest } from "./auth";
+import type { RefreshRequest, TokenResponse } from "./auth";
 import {
   clearStoredTokens,
   getStoredAccessToken,
@@ -205,7 +205,7 @@ export const initializeAuthSession = () => {
 // -- Token refresh ------------------------------------------------------------
 
 const requestTokenRefresh = async (refreshToken: string) =>
-  refreshClient.post<AccessTokenResponse>("/auth/refresh", {
+  refreshClient.post<TokenResponse>("/auth/refresh", {
     refresh_token: refreshToken,
   } satisfies RefreshRequest);
 
@@ -226,12 +226,19 @@ const refreshAccessToken = async () => {
     refreshPromise = requestTokenRefresh(storedRefreshToken)
       .then((response) => {
         const nextAccessToken = response.data?.access_token ?? null;
-        if (!nextAccessToken) {
-          authLog("Refresh response missing access token");
+        const nextRefreshToken = response.data?.refresh_token ?? null;
+
+        if (!nextAccessToken || !nextRefreshToken) {
+          authLog("Refresh response missing token payload", {
+            hasAccessToken: Boolean(nextAccessToken),
+            hasRefreshToken: Boolean(nextRefreshToken),
+          });
           clearAuthSession();
           return null;
         }
+
         setAccessToken(nextAccessToken);
+        setRefreshToken(nextRefreshToken);
         authLog("Access token refreshed", {
           accessTokenExpiry: getStoredAccessTokenExpiryInfo(),
           refreshTokenExpiry: getStoredRefreshTokenExpiryInfo(),

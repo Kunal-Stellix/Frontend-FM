@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { login, register } from "@/api/auth";
 import { initializeAuthSession } from "@/api/client";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { ArrowLeft, ArrowRight, Loader2 } from "lucide-react";
 
 type ApiErrorResponse = {
@@ -19,6 +20,7 @@ type ActiveTab = "signin" | "signup";
 export function LoginView() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { completeAuth } = useAuth();
   const [activeTab, setActiveTab] = useState<ActiveTab>("signin");
   const [formData, setFormData] = useState({ email: "", password: "" });
   const [signupData, setSignupData] = useState({ username: "", email: "", password: "" });
@@ -44,7 +46,8 @@ export function LoginView() {
     setError(null);
 
     try {
-      await login(formData);
+      const response = await login(formData);
+      completeAuth(response);
       router.replace(nextPath);
     } catch (err: unknown) {
       const message = axios.isAxiosError<ApiErrorResponse>(err)
@@ -62,11 +65,12 @@ export function LoginView() {
     setError(null);
 
     try {
-      await register({
+      const response = await register({
         name: signupData.username,
         email: signupData.email,
         password: signupData.password,
       });
+      completeAuth(response);
       router.replace(nextPath);
     } catch (err: unknown) {
       const message = axios.isAxiosError<ApiErrorResponse>(err)

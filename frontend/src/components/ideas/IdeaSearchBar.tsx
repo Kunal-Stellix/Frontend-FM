@@ -41,14 +41,14 @@ export function IdeaSearchBar({ value, onChange }: IdeaSearchBarProps) {
   };
 
   return (
-    <label className="input input-bordered w-full flex items-center gap-2 rounded-xl h-12 focus-within:input-primary transition-all duration-200">
+    <label className="input input-bordered flex h-12 w-full items-center gap-2 rounded-xl transition-all duration-200 focus-within:input-primary">
       <Search className="h-4 w-4 text-base-content/40" />
       <input
         type="text"
         value={draft}
         onChange={(event) => handleChange(event.target.value)}
-        className="grow bg-transparent outline-none text-sm placeholder:text-base-content/40"
-        placeholder="Search ideas…"
+        className="grow bg-transparent text-sm outline-none placeholder:text-base-content/40"
+        placeholder="Search ideas..."
       />
       {draft ? (
         <button
@@ -60,7 +60,7 @@ export function IdeaSearchBar({ value, onChange }: IdeaSearchBarProps) {
           <X className="h-3.5 w-3.5" />
         </button>
       ) : (
-        <kbd className="kbd kbd-sm text-base-content/30">🔍︎</kbd>
+        <kbd className="kbd kbd-sm text-base-content/30">Search</kbd>
       )}
     </label>
   );

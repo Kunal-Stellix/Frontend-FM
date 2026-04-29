@@ -37,11 +37,6 @@ export type RefreshRequest = {
   refresh_token: string;
 };
 
-export type AccessTokenResponse = {
-  access_token: string;
-  token_type: string;
-};
-
 export const applyAuthTokens = (tokens: Partial<TokenResponse> | null | undefined) => {
   if (!tokens?.access_token || !tokens.refresh_token) {
     authLog("applyAuthTokens received incomplete token payload", {

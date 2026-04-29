@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useSyncExternalStore } from "react";
+import { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { hasStoredSession, subscribeToAuthSession } from "@/lib/authStorage";
+import { useAuth } from "./AuthProvider";
 
 const publicRoutes = new Set(["/", "/ideas", "/feedback"]);
 
@@ -10,14 +10,10 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const isPublicRoute = publicRoutes.has(pathname);
-  const isAuthenticated = useSyncExternalStore(
-    subscribeToAuthSession,
-    hasStoredSession,
-    () => false,
-  );
+  const { isAuthenticated, isHydrated } = useAuth();
 
   useEffect(() => {
-    if (isPublicRoute) {
+    if (isPublicRoute || !isHydrated) {
       return;
     }
 
@@ -25,9 +21,9 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
       const nextPath = encodeURIComponent(pathname);
       router.replace(`/login?next=${nextPath}`);
     }
-  }, [isAuthenticated, isPublicRoute, pathname, router]);
+  }, [isAuthenticated, isHydrated, isPublicRoute, pathname, router]);
 
-  if (!isPublicRoute && !isAuthenticated) {
+  if (!isPublicRoute && (!isHydrated || !isAuthenticated)) {
     return null;
   }
 

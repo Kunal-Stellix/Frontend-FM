@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { register } from "@/api/auth";
 import { initializeAuthSession } from "@/api/client";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { Mail, Lock, User, ArrowLeft, ArrowRight, Loader2, Sparkles, CheckCircle2 } from "lucide-react";
 
 type ApiErrorResponse = {
@@ -15,6 +16,7 @@ type ApiErrorResponse = {
 
 export function RegisterView() {
   const router = useRouter();
+  const { completeAuth } = useAuth();
   const [formData, setFormData] = useState({ name: "", email: "", password: "" });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -33,7 +35,8 @@ export function RegisterView() {
     setError(null);
 
     try {
-      await register(formData);
+      const response = await register(formData);
+      completeAuth(response);
       router.replace("/");
     } catch (err: unknown) {
       const message = axios.isAxiosError<ApiErrorResponse>(err)

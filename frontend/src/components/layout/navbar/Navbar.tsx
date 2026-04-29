@@ -1,12 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { FeedbackAvatar } from "@/components/ui";
-import { getCurrentUser, logout, type UserResponse } from "@/api/auth";
-import { initializeAuthSession } from "@/api/client";
-import { hasStoredSession, subscribeToAuthSession } from "@/lib/authStorage";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { mainNavItems } from "@/lib/navigation";
 import { cn } from "@/lib/utils";
 
@@ -21,48 +19,20 @@ const getInitials = (name: string) =>
 export function Navbar() {
   const pathname = usePathname();
   const router = useRouter();
-  const [currentUser, setCurrentUser] = useState<UserResponse | null>(null);
-  const isAuthenticated = useSyncExternalStore(
-    subscribeToAuthSession,
-    hasStoredSession,
-    () => false,
-  );
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const { currentUser, isAuthenticated, logout } = useAuth();
   const feedbackCtaHref = isAuthenticated
     ? "/ideas?compose=1"
     : "/login?next=%2Fideas%3Fcompose%3D1";
 
-  useEffect(() => {
-    initializeAuthSession();
-  }, [pathname]);
-
-  useEffect(() => {
-    if (!isAuthenticated) {
-      return;
-    }
-
-    let active = true;
-
-    void getCurrentUser()
-      .then((user) => {
-        if (active) {
-          setCurrentUser(user);
-        }
-      })
-      .catch(() => {
-        if (active) {
-          setCurrentUser(null);
-        }
-      });
-
-    return () => {
-      active = false;
-    };
-  }, [isAuthenticated]);
-
   const handleLogout = async () => {
-    setCurrentUser(null);
-    await logout();
-    router.replace("/login");
+    try {
+      setIsLoggingOut(true);
+      await logout();
+      router.replace("/login");
+    } finally {
+      setIsLoggingOut(false);
+    }
   };
 
   return (
@@ -119,7 +89,11 @@ export function Navbar() {
                   ) : null}
                   <li><Link href="/dashboard">Dashboard</Link></li>
                   <li><Link href="/settings">Settings</Link></li>
-                  <li><button className="text-error" onClick={handleLogout}>Logout</button></li>
+                  <li>
+                    <button className="text-error" onClick={handleLogout} disabled={isLoggingOut}>
+                      {isLoggingOut ? "Logging out..." : "Logout"}
+                    </button>
+                  </li>
                 </ul>
               </div>
             ) : (

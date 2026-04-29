@@ -1,5 +1,5 @@
-import { FeedbackPageClient } from "@/components/feedback";
+import { IdeasPageClient } from "@/components/ideas";
 
 export default function IdeasPage() {
-  return <FeedbackPageClient />;
+  return <IdeasPageClient />;
 }

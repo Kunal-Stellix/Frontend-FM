@@ -11,11 +11,34 @@ export type SortOption =
   | "recently_updated"
   | "most_commented";
 
+export type ApiIdeaStatus =
+  | "idea"
+  | "under-review"
+  | "planned"
+  | "in-progress"
+  | "completed";
+
+export type ApiIdeaSortOption = "votes" | "newest" | "updated" | "comments";
+
 export type Category = {
   id: string;
   label: string;
   slug: string;
   color?: string;
+};
+
+export type ApiCategory = {
+  id: string;
+  name: string;
+  slug: string;
+  color: string | null;
+  created_at: string;
+};
+
+export type ApiAuthor = {
+  id: string;
+  name: string;
+  avatar_url: string | null;
 };
 
 export type Vote = {
@@ -41,6 +64,20 @@ export type Idea = {
   updatedAt: string;
 };
 
+export type ApiIdea = {
+  id: string;
+  title: string;
+  description: string | null;
+  status: ApiIdeaStatus;
+  author: ApiAuthor;
+  category: ApiCategory | null;
+  vote_count: number;
+  comment_count: number;
+  voted_by_me: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
 export type IdeaListResponse = {
   ideas: Idea[];
   total: number;
@@ -52,9 +89,28 @@ export type IdeaListResponse = {
 export type SubmitIdeaPayload = {
   title: string;
   description?: string;
-  categoryIds?: string[];
+  categoryId?: string | null;
 };
 
 export type DuplicateCheckResponse = {
   duplicates: Pick<Idea, "id" | "title" | "excerpt" | "voteCount" | "status">[];
+};
+
+export type ApiIdeaListResponse = {
+  items: ApiIdea[];
+  total: number;
+  page: number;
+  page_size: number;
+  has_next: boolean;
+};
+
+export type ApiCreateIdeaRequest = {
+  title: string;
+  description?: string;
+  category_id?: string;
+};
+
+export type ApiVoteResponse = {
+  voted: boolean;
+  vote_count: number;
 };
