@@ -444,29 +444,27 @@ export function IdeasPageClient() {
         onChange={(value) => replaceQuery({ search: value, page: 1 })}
       />
 
-      <div className="grid gap-6 lg:grid-cols-[300px_1fr]">
-        <aside className="space-y-6 lg:sticky lg:top-20 lg:self-start">
-          <div className="rounded-2xl border border-base-300/70 bg-base-100/70 p-4 shadow-sm">
-            <h2 className="mb-3 px-2 text-sm font-bold uppercase tracking-[0.22em] text-base-content/70">
-              Categories
-            </h2>
-            <CategoryFilterChips
-              categories={availableCategories}
-              selected={categories}
-              onChange={(next) => replaceQuery({ categories: next, page: 1 })}
-            />
-          </div>
-
-          <div className="divider my-0" />
-
-          <div className="rounded-2xl border border-base-300/70 bg-base-100/70 p-4 shadow-sm">
-            <h2 className="mb-3 px-2 text-sm font-bold uppercase tracking-[0.22em] text-base-content/70">
-              Status
+      <div className="grid gap-6 lg:grid-cols-[240px_1fr]">
+        <aside className="space-y-8 lg:sticky lg:top-20 lg:self-start pt-2">
+          <div>
+            <h2 className="mb-3 px-2 text-[13px] font-semibold text-base-content/50">
+              Statuses
             </h2>
             <StatusFilter
               selected={statuses}
               onChange={(next) => replaceQuery({ statuses: next, page: 1 })}
               counts={statusCounts ?? undefined}
+            />
+          </div>
+
+          <div>
+            <h2 className="mb-3 px-2 text-[13px] font-semibold text-base-content/50">
+              Topics
+            </h2>
+            <CategoryFilterChips
+              categories={availableCategories}
+              selected={categories}
+              onChange={(next) => replaceQuery({ categories: next, page: 1 })}
             />
           </div>
         </aside>

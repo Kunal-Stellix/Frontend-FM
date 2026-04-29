@@ -20,14 +20,18 @@ const statusConfig: Array<{
 
 export function StatusFilter({ selected, onChange, counts }: StatusFilterProps) {
   return (
-    <ul className="menu rounded-box gap-2 p-0">
+    <ul className="flex flex-col gap-1">
       <li>
         <button
           type="button"
           onClick={() => onChange([])}
-          className={`min-h-12 rounded-xl px-4 text-sm ${selected.length === 0 ? "active font-semibold" : "font-medium"}`}
+          className={`group flex w-full items-center min-h-10 rounded-lg px-2 text-sm transition-colors hover:bg-base-200/60 ${
+            selected.length === 0
+              ? "bg-base-200/40 font-bold text-base-content"
+              : "font-medium text-base-content/70"
+          }`}
         >
-          <span className="flex-1">All statuses</span>
+          <span className="flex-1 text-left">All Statuses</span>
         </button>
       </li>
 
@@ -46,12 +50,16 @@ export function StatusFilter({ selected, onChange, counts }: StatusFilterProps) 
                     : [...selected, status.value],
                 )
               }
-              className={`min-h-12 rounded-xl px-4 text-sm ${isActive ? "active font-semibold" : "font-medium"}`}
+              className={`group flex w-full items-center gap-3 min-h-10 rounded-lg px-2 text-sm transition-colors hover:bg-base-200/60 ${
+                isActive
+                  ? "bg-base-200/40 font-bold text-base-content"
+                  : "font-medium text-base-content/70"
+              }`}
             >
-              <span className={`h-3 w-3 shrink-0 rounded-full ${status.dotClass}`} />
-              <span className="flex-1">{status.label}</span>
+              <span className={`h-3.5 w-3.5 shrink-0 rounded-full border-[2px] ${status.dotClass.replace('bg-', 'border-')} ${isActive ? status.dotClass : 'bg-transparent'} transition-colors`} />
+              <span className="flex-1 text-left">{status.label}</span>
               {typeof count === "number" ? (
-                <span className="badge badge-md badge-ghost tabular-nums">
+                <span className={`text-xs font-semibold tabular-nums ${isActive ? "text-base-content/60" : "text-base-content/40 group-hover:text-base-content/60"}`}>
                   {count}
                 </span>
               ) : null}

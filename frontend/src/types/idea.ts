@@ -12,11 +12,11 @@ export type SortOption =
   | "most_commented";
 
 export type ApiIdeaStatus =
-  | "idea"
-  | "under-review"
+  | "under_review"
   | "planned"
-  | "in-progress"
-  | "completed";
+  | "in_progress"
+  | "shipped"
+  | "declined";
 
 export type ApiIdeaSortOption = "votes" | "newest" | "updated" | "comments";
 
@@ -63,6 +63,31 @@ export type Idea = {
   createdAt: string;
   updatedAt: string;
 };
+
+export type Comment = {
+  id: string;
+  ideaId: string;
+  content: string;
+  authorId: string;
+  authorName: string;
+  authorAvatar?: string | null;
+  parentId?: string | null;
+  createdAt: string;
+  replies?: Comment[];
+};
+
+export type ApiComment = {
+  id: string;
+  idea_id: string;
+  content: string;
+  author: ApiAuthor;
+  parent_id: string | null;
+  created_at: string;
+};
+
+export type RoadmapItem = Idea;
+export type ApiRoadmapItem = ApiIdea;
+
 
 export type ApiIdea = {
   id: string;
@@ -114,3 +139,14 @@ export type ApiVoteResponse = {
   voted: boolean;
   vote_count: number;
 };
+
+export type ApiCommentListResponse = {
+  items: ApiComment[];
+  total: number;
+};
+
+export type ApiCreateCommentRequest = {
+  content: string;
+  parent_id?: string | null;
+};
+
