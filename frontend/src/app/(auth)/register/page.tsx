@@ -1,13 +1,5 @@
-import { Suspense } from "react";
-import { AuthRedirect } from "@/components/auth/AuthRedirect";
-import { RegisterView } from "@/components/auth/RegisterView";
+import { redirect } from "next/navigation";
 
 export default function RegisterPage() {
-  return (
-    <Suspense>
-      <AuthRedirect>
-        <RegisterView />
-      </AuthRedirect>
-    </Suspense>
-  );
+  redirect("/login");
 }

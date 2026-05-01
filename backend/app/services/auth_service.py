@@ -1,18 +1,24 @@
 import uuid
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, func
 from fastapi import HTTPException, status
+from jose import jwt, JWTError
 
 from app.repositories.user_repository import UserRepository
+from app.models.user import User, RoleEnum
 from app.schemas.user import (
     RegisterRequest,
     LoginRequest,
     TokenResponse,
     UserResponse,
     AuthResponse,
+    SSOTokenRequest,
+    SSOTokenClaims,
 )
 from app.utils.password import hash_password, verify_password
 from app.core.security import create_access_token, create_refresh_token, decode_token
 from app.core.redis import get_redis
+from app.core.config import settings
 
 
 class AuthService:
@@ -31,10 +37,17 @@ class AuthService:
                 status_code=status.HTTP_409_CONFLICT,
                 detail="Email already registered"
             )
+
+        # First user becomes admin automatically
+        count_result = await self.repo.db.execute(select(func.count()).select_from(User))
+        total_users = count_result.scalar() or 0
+        role = RoleEnum.admin if total_users == 0 else RoleEnum.member
+
         user = await self.repo.create(
             name=data.name,
             email=data.email,
             hashed_password=hash_password(data.password),
+            role=role,
         )
         return AuthResponse(
             user=UserResponse.model_validate(user),
@@ -90,3 +103,31 @@ class AuthService:
                 detail="User not found"
             )
         return UserResponse.model_validate(user)
+
+    async def sso_authenticate(self, token: str) -> AuthResponse:
+        try:
+            payload = decode_token(token, expected_type="access")
+        except Exception:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid or expired SSO token"
+            )
+
+        user = await self.repo.get_by_email(payload.get("email"))
+        if not user:
+            # Create new user with role=member
+            user = await self.repo.create(
+                name=payload.get("name", "SSO User"),
+                email=payload["email"],
+                hashed_password=hash_password(uuid.uuid4().hex[:16]),  # Random password
+            )
+        elif not user.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Account deactivated"
+            )
+
+        return AuthResponse(
+            user=UserResponse.model_validate(user),
+            tokens=self._make_tokens(user),
+        )

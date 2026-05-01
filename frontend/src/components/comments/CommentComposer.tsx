@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter, usePathname } from "next/navigation";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { submitComment } from "@/lib/feedbackApi";
 import type { Comment } from "@/types/idea";
 
@@ -25,13 +25,15 @@ export function CommentComposer({
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const currentPath = searchParams.toString() ? `${pathname}?${searchParams.toString()}` : pathname;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!content.trim()) return;
 
     if (!isLoggedIn) {
-      router.push(`/login?next=${encodeURIComponent(pathname)}`);
+      router.push(`/login?next=${encodeURIComponent(currentPath)}`);
       return;
     }
 

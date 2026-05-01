@@ -12,9 +12,13 @@ export type SortOption =
   | "most_commented";
 
 export type ApiIdeaStatus =
+  | "idea"
+  | "under-review"
   | "under_review"
   | "planned"
+  | "in-progress"
   | "in_progress"
+  | "completed"
   | "shipped"
   | "declined";
 
@@ -78,11 +82,11 @@ export type Comment = {
 
 export type ApiComment = {
   id: string;
-  idea_id: string;
-  content: string;
+  body: string;
   author: ApiAuthor;
   parent_id: string | null;
   created_at: string;
+  replies?: ApiComment[];
 };
 
 export type RoadmapItem = Idea;
@@ -146,7 +150,6 @@ export type ApiCommentListResponse = {
 };
 
 export type ApiCreateCommentRequest = {
-  content: string;
+  body: string;
   parent_id?: string | null;
 };
-

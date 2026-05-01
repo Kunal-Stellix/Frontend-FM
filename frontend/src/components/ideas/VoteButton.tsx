@@ -46,7 +46,7 @@ export function VoteButton({
       ) : (
         <ChevronUp
           className={cn(
-            "h-4 w-4 transition-transform duration-200",
+            "h-6 w-4 transition-transform duration-200",
             hasVoted && "scale-110",
           )}
           strokeWidth={hasVoted ? 3 : 2}

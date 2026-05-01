@@ -60,3 +60,15 @@ class UserResponse(BaseModel):
 class AuthResponse(BaseModel):
     user: UserResponse
     tokens: TokenResponse
+
+
+class SSOTokenRequest(BaseModel):
+    token: str
+
+
+class SSOTokenClaims(BaseModel):
+    sub: str
+    email: EmailStr
+    name: str
+    plan: str | None = None
+    exp: int

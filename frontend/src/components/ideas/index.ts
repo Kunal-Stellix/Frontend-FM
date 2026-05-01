@@ -3,7 +3,6 @@ export * from "./DuplicateWarning";
 export * from "./IdeaCard";
 export * from "./IdeaDetailsModal";
 export * from "./IdeaList";
-export * from "./IdeasIntro";
 export * from "./IdeasPageClient";
 export * from "./IdeaSearchBar";
 export * from "./SortControls";

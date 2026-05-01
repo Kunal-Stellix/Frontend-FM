@@ -1,8 +1,12 @@
 "use client";
 
-import { MessageSquare, Paperclip, X } from "lucide-react";
-import type { Idea, IdeaStatus } from "@/types/idea";
+import Image from "next/image";
+import { useEffect, useState } from "react";
+import { X } from "lucide-react";
+import type { Idea, Comment } from "@/types/idea";
 import { VoteButton } from "./VoteButton";
+import { CommentThread } from "@/components/comments/CommentThread";
+import { fetchIdeaComments } from "@/lib/feedbackApi";
 
 type IdeaDetailsModalProps = {
   idea: Idea | null;
@@ -13,9 +17,10 @@ type IdeaDetailsModalProps = {
   isVoting?: boolean;
   onClose: () => void;
   onVoteToggle: (ideaId: string) => void;
+  onCommentAdded?: () => void;
 };
 
-const getAvatarUrl = (name: string) => 
+const getAvatarUrl = (name: string) =>
   `https://api.dicebear.com/9.x/initials/svg?seed=${encodeURIComponent(name)}&backgroundColor=e2e8f0&textColor=475569`;
 
 export function IdeaDetailsModal({
@@ -27,7 +32,47 @@ export function IdeaDetailsModal({
   isVoting = false,
   onClose,
   onVoteToggle,
+  onCommentAdded,
 }: IdeaDetailsModalProps) {
+  const [comments, setComments] = useState<Comment[]>([]);
+  const [commentsLoading, setCommentsLoading] = useState(false);
+
+  useEffect(() => {
+    if (open && idea) {
+      let active = true;
+      Promise.resolve().then(() => {
+        if (active) {
+          setCommentsLoading(true);
+        }
+      });
+      fetchIdeaComments(idea.id)
+        .then((data) => {
+          if (active) {
+            setComments(data);
+            setCommentsLoading(false);
+          }
+        })
+        .catch(() => {
+          if (active) {
+            setCommentsLoading(false);
+          }
+        });
+
+      return () => {
+        active = false;
+      };
+    }
+    Promise.resolve().then(() => {
+      setComments([]);
+      setCommentsLoading(false);
+    });
+  }, [open, idea]);
+
+  const handleCommentAdded = (newComment: Comment) => {
+    setComments((prev) => [...prev, newComment]);
+    onCommentAdded?.();
+  };
+
   if (!open) {
     return null;
   }
@@ -56,15 +101,17 @@ export function IdeaDetailsModal({
           <div className="mt-8">
             <div className="flex gap-5">
               <div className="shrink-0 pt-1">
-                <VoteButton
-                  ideaId={idea.id}
-                  voteCount={idea.voteCount}
-                  hasVoted={idea.hasVoted}
-                  onToggle={onVoteToggle}
-                  isLoggedIn={isLoggedIn}
-                  loading={isVoting}
-                  className="min-w-16 h-20 rounded-xl border-2 bg-base-100"
-                />
+                <div className="stats stats-vertical border border-base-300 bg-base-200/40 shadow-none">
+                  <VoteButton
+                    ideaId={idea.id}
+                    voteCount={idea.voteCount}
+                    hasVoted={idea.hasVoted}
+                    onToggle={onVoteToggle}
+                    isLoggedIn={isLoggedIn}
+                    loading={isVoting}
+                    className="hover:bg-base-200/80"
+                  />
+                </div>
               </div>
               <div className="flex-1">
                 <h2 className="text-2xl font-bold text-base-content leading-tight">
@@ -78,7 +125,14 @@ export function IdeaDetailsModal({
                   <span>#{idea.id.slice(0, 4)}</span>
                   <span>{idea.authorName}</span>
                   <div className="h-6 w-6 overflow-hidden rounded-full bg-base-300 border border-base-300">
-                    <img src={getAvatarUrl(idea.authorName)} alt={idea.authorName} className="h-full w-full object-cover" />
+                    <Image
+                      src={getAvatarUrl(idea.authorName)}
+                      alt={idea.authorName}
+                      width={24}
+                      height={24}
+                      unoptimized
+                      className="h-full w-full object-cover"
+                    />
                   </div>
                 </div>
 
@@ -92,31 +146,19 @@ export function IdeaDetailsModal({
               </div>
             </div>
 
-            <div className="mt-12 rounded-xl border border-base-200 bg-base-100 p-4 shadow-sm relative">
-              <textarea
-                className="w-full min-h-[100px] resize-none border-0 bg-transparent p-1 text-sm focus:outline-none placeholder:text-base-content/40"
-                placeholder="Add a comment..."
-              />
-              <div className="mt-2 flex items-center justify-between">
-                <button type="button" className="btn btn-ghost btn-sm btn-circle text-base-content/40 hover:text-base-content">
-                  <Paperclip className="h-4 w-4" />
-                </button>
-                <button type="button" className="btn btn-primary btn-sm px-5 font-bold">
-                  Add comment
-                </button>
-              </div>
-            </div>
-
-            <div className="mt-12">
-              <h3 className="border-b border-base-200 pb-3 text-sm font-semibold text-base-content/70">
-                Activity
-              </h3>
-              <div className="flex flex-col items-center justify-center py-16 text-center">
-                <MessageSquare className="h-8 w-8 text-base-content/20 mb-3" />
-                <p className="text-sm text-base-content/50">
-                  Be the first to comment on this Idea
-                </p>
-              </div>
+            <div className="mt-12 pt-8 border-t border-base-200">
+              {commentsLoading ? (
+                <div className="flex justify-center py-8">
+                  <span className="loading loading-spinner loading-md text-primary"></span>
+                </div>
+              ) : (
+                <CommentThread
+                  ideaId={idea.id}
+                  comments={comments}
+                  onCommentAdded={handleCommentAdded}
+                  isLoggedIn={isLoggedIn}
+                />
+              )}
             </div>
           </div>
         ) : (

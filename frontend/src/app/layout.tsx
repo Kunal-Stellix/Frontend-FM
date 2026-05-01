@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { Inter } from "next/font/google";
 import { AuthProvider } from "@/components/auth/AuthProvider";
 import { AuthSessionWatcher } from "@/components/auth/AuthSessionWatcher";
+import { BrandThemeProvider } from "@/components/branding/BrandThemeProvider";
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
@@ -19,10 +21,14 @@ export default function RootLayout({
   return (
     <html lang="en" className={`h-full antialiased ${inter.variable}`}>
       <body className="min-h-full font-sans">
-        <AuthProvider>
-          <AuthSessionWatcher />
-          {children}
-        </AuthProvider>
+        <BrandThemeProvider>
+          <AuthProvider>
+            <Suspense>
+              <AuthSessionWatcher />
+            </Suspense>
+            {children}
+          </AuthProvider>
+        </BrandThemeProvider>
       </body>
     </html>
   );

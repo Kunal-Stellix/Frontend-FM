@@ -22,11 +22,13 @@ class UserRepository:
         name: str,
         email: str,
         hashed_password: str,
+        role: "RoleEnum | None" = None,
     ) -> User:
         user = User(
             name=name,
             email=email.lower(),
             hashed_password=hashed_password,
+            role=role,
         )
         self.db.add(user)
         await self.db.flush()

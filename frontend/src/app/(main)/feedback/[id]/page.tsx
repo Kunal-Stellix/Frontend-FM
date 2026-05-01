@@ -7,7 +7,8 @@ import { hasStoredSession } from "@/lib/authStorage";
 import type { Idea, Comment } from "@/types/idea";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { CommentThread } from "@/components/comments/CommentThread";
-import { ArrowLeft, ChevronUp } from "lucide-react";
+import { VoteButton } from "@/components/ideas/VoteButton";
+import { ArrowLeft } from "lucide-react";
 
 export default function IdeaDetailPage() {
   const params = useParams();
@@ -19,16 +20,13 @@ export default function IdeaDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isVoting, setIsVoting] = useState(false);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const isLoggedIn = hasStoredSession();
 
   useEffect(() => {
-    setIsLoggedIn(hasStoredSession());
-    
     let active = true;
     
     const loadData = async () => {
       try {
-        setLoading(true);
         const [ideaData, commentsData] = await Promise.all([
           fetchIdeaById(ideaId),
           fetchIdeaComments(ideaId),
@@ -42,7 +40,7 @@ export default function IdeaDetailPage() {
           setIdea(ideaData);
           setComments(commentsData);
         }
-      } catch (err) {
+      } catch {
         if (!active) return;
         setError("Failed to load idea details");
       } finally {
@@ -81,7 +79,7 @@ export default function IdeaDetailPage() {
         hasVoted: result.hasVoted,
         voteCount: result.voteCount,
       } : current);
-    } catch (err) {
+    } catch {
       setIdea((current) => current ? {
         ...current,
         hasVoted: prevVoted,
@@ -129,18 +127,17 @@ export default function IdeaDetailPage() {
       <div className="bg-base-100 rounded-xl shadow-sm border border-base-200 p-6 md:p-8 mb-8">
         <div className="flex gap-6 items-start">
           <div className="flex flex-col items-center">
-            <button
-              onClick={handleVote}
-              disabled={isVoting}
-              className={`flex flex-col items-center justify-center w-12 h-16 rounded-xl border-2 transition-all ${
-                idea.hasVoted
-                  ? "border-primary bg-primary/10 text-primary"
-                  : "border-base-200 bg-base-50 text-base-content/60 hover:border-primary/30 hover:bg-base-200"
-              }`}
-            >
-              <ChevronUp className="h-6 w-6 -mb-1" strokeWidth={idea.hasVoted ? 3 : 2} />
-              <span className="font-bold text-sm">{idea.voteCount}</span>
-            </button>
+            <div className="stats stats-vertical border border-base-300 bg-base-200/40 shadow-none">
+              <VoteButton
+                ideaId={idea.id}
+                voteCount={idea.voteCount}
+                hasVoted={idea.hasVoted}
+                onToggle={handleVote}
+                isLoggedIn={isLoggedIn}
+                loading={isVoting}
+                className="hover:bg-base-200/80"
+              />
+            </div>
           </div>
 
           <div className="flex-1 space-y-4">

@@ -1,8 +1,7 @@
 import uuid
 from datetime import datetime
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from app.models.idea import IdeaStatus
-from app.schemas.category import CategoryResponse
 
 
 class AuthorResponse(BaseModel):
@@ -10,7 +9,16 @@ class AuthorResponse(BaseModel):
     name: str
     avatar_url: str | None = None
 
-    model_config = {"from_attributes": True}
+    model_config = ConfigDict(from_attributes=True)
+
+
+class CategoryResponse(BaseModel):
+    id: uuid.UUID
+    name: str
+    slug: str
+    color: str | None = None
+
+    model_config = ConfigDict(from_attributes=True)
 
 
 class IdeaCreate(BaseModel):
@@ -32,7 +40,7 @@ class IdeaResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
 
-    model_config = {"from_attributes": True}
+    model_config = ConfigDict(from_attributes=True)
 
 
 class IdeaListResponse(BaseModel):
@@ -41,3 +49,17 @@ class IdeaListResponse(BaseModel):
     page: int
     page_size: int
     has_next: bool
+
+
+class IdeaStatusUpdate(BaseModel):
+    status: IdeaStatus
+    note: str | None = Field(None, max_length=500)
+
+
+class IdeaRejectRequest(BaseModel):
+    reason: str | None = Field(None, max_length=500)
+
+
+class IdeaMergeRequest(BaseModel):
+    primary_idea_id: uuid.UUID
+    secondary_idea_ids: list[uuid.UUID] = Field(..., min_length=1)

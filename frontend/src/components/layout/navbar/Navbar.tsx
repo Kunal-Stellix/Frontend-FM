@@ -1,12 +1,26 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { FeedbackAvatar } from "@/components/ui";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { mainNavItems } from "@/lib/navigation";
+import {
+  getDefaultProfilePreferences,
+  getProfileAvatar,
+  getProfileName,
+  getStoredProfilePreferences,
+  subscribeToProfilePreferences,
+} from "@/lib/profilePreferences";
+import {
+  getDefaultPortalSettings,
+  getStoredPortalSettings,
+  subscribeToPortalSettings,
+} from "@/lib/brandTheme";
 import { cn } from "@/lib/utils";
+import { NotificationBell } from "./NotificationBell";
 
 const getInitials = (name: string) =>
   name
@@ -21,9 +35,23 @@ export function Navbar() {
   const router = useRouter();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const { currentUser, isAuthenticated, logout } = useAuth();
+  const profilePreferences = useSyncExternalStore(
+    subscribeToProfilePreferences,
+    getStoredProfilePreferences,
+    getDefaultProfilePreferences,
+  );
+  const portalSettings = useSyncExternalStore(
+    subscribeToPortalSettings,
+    getStoredPortalSettings,
+    getDefaultPortalSettings,
+  );
   const feedbackCtaHref = isAuthenticated
     ? "/ideas?compose=1"
     : "/login?next=%2Fideas%3Fcompose%3D1";
+  const profileName = getProfileName(currentUser, profilePreferences);
+  const profileAvatar = getProfileAvatar(profilePreferences.avatarId);
+  const dashboardHref = currentUser?.role === "admin" ? "/admin/settings" : "/dashboard";
+  const dashboardLabel = currentUser?.role === "admin" ? "Admin Dashboard" : "Dashboard";
 
   const handleLogout = async () => {
     try {
@@ -40,11 +68,26 @@ export function Navbar() {
       <nav className="main-navbar">
         <div className="main-navbar-brand-row">
           <Link href="/" className="main-navbar-brand">
-            <span className="main-navbar-brand-mark" aria-hidden="true">
-              FM
-            </span>
+            {portalSettings.logoUrl ? (
+              <Image
+                src={portalSettings.logoUrl}
+                alt={`${portalSettings.portalName} logo`}
+                width={44}
+                height={44}
+                unoptimized
+                className="main-navbar-brand-logo"
+              />
+            ) : (
+              <span
+                className="main-navbar-brand-mark"
+                aria-hidden="true"
+                style={{ backgroundColor: portalSettings.brandColor }}
+              >
+                {portalSettings.portalName.slice(0, 2).toUpperCase()}
+              </span>
+            )}
             <span className="main-navbar-brand-copy">
-              <span className="main-navbar-brand-title">Feedback</span>
+              <span className="main-navbar-brand-title">{portalSettings.portalName}</span>
               <span className="main-navbar-brand-subtitle">Management system</span>
             </span>
           </Link>
@@ -73,22 +116,26 @@ export function Navbar() {
             </Link>
             
             {isAuthenticated ? (
-              <div className="dropdown dropdown-end">
+              <>
+                <NotificationBell />
+                <div className="dropdown dropdown-end">
                 <div tabIndex={0} role="button" className="btn btn-ghost btn-circle p-1">
                   <FeedbackAvatar
-                    name={currentUser?.name ?? "User account"}
-                    initials={getInitials(currentUser?.name ?? "User account")}
+                    name={profileName}
+                    imageUrl={profileAvatar?.imageUrl}
+                    initials={getInitials(profileName)}
                     size="sm"
                   />
                 </div>
                 <ul tabIndex={0} className="mt-3 z-[1] p-2 shadow menu menu-sm dropdown-content bg-base-100 rounded-box w-52">
                   {currentUser ? (
                     <li className="menu-title">
-                      <span>{currentUser.name}</span>
+                      <span>{profileName}</span>
                     </li>
                   ) : null}
-                  <li><Link href="/dashboard">Dashboard</Link></li>
-                  <li><Link href="/settings">Settings</Link></li>
+                  <li><Link href={dashboardHref}>{dashboardLabel}</Link></li>
+                  <li><Link href="/profile">Profile</Link></li>
+                  <li><Link href={dashboardHref}>Settings</Link></li>
                   <li>
                     <button className="text-error" onClick={handleLogout} disabled={isLoggingOut}>
                       {isLoggingOut ? "Logging out..." : "Logout"}
@@ -96,6 +143,7 @@ export function Navbar() {
                   </li>
                 </ul>
               </div>
+              </>
             ) : (
               <div className="flex items-center gap-2">
                 <Link href="/login" className="main-navbar-link-button">

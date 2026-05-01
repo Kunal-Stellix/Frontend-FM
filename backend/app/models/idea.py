@@ -62,11 +62,12 @@ class Idea(Base):
     followers = relationship("Follower", back_populates="idea", cascade="all, delete-orphan")
     comments = relationship("Comment", back_populates="idea", cascade="all, delete-orphan")
     roadmap_items = relationship(
-    "RoadmapItem",
-    secondary="roadmap_idea_links",
-    back_populates="linked_ideas",
+        "RoadmapItem",
+        secondary="roadmap_idea_links",
+        back_populates="ideas",
+        passive_deletes=True,
     )
-    
+
     # Indexes
     __table_args__ = (
         Index("ix_ideas_status", "status"),

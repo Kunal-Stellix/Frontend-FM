@@ -55,6 +55,7 @@ export function FeedbackAvatar({
     <div
       className={cn(
         "avatar",
+        !imageUrl && "placeholder",
         presence && presenceClasses[presence],
         className,
       )}
@@ -63,9 +64,9 @@ export function FeedbackAvatar({
     >
       <div
         className={cn(
-          "rounded-full ring ring-base-100 ring-offset-2 ring-offset-base-100",
+          "rounded-full",
           avatarSizes[size],
-          !imageUrl && "avatar placeholder",
+          !imageUrl && "bg-neutral text-neutral-content",
           presence && presenceToneClasses[presence],
         )}
       >
@@ -73,7 +74,7 @@ export function FeedbackAvatar({
           // eslint-disable-next-line @next/next/no-img-element
           <img src={imageUrl} alt={name} />
         ) : (
-          <span className="text-sm font-semibold tracking-wide">{fallbackInitials}</span>
+          <span className="font-semibold">{fallbackInitials}</span>
         )}
       </div>
     </div>

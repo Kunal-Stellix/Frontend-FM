@@ -26,6 +26,7 @@ class Settings:
         self.DB_NAME: str = os.getenv("DB_NAME", "feedback_db")
 
         self.REDIS_URL: str = os.getenv("REDIS_URL", "redis://redis:6379/0")
+        self.SSO_SECRET: str = os.getenv("SSO_SECRET", "")
 
         raw_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000")
         self.ALLOWED_ORIGINS: list[str] = [o.strip() for o in raw_origins.split(",")]

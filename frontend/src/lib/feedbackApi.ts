@@ -1,5 +1,5 @@
 import axios from "axios";
-import { apiClient } from "@/lib/apiClient";
+import { apiClient } from "@/api/client";
 import { hasStoredSession } from "@/lib/authStorage";
 import type {
   ApiCategory,
@@ -22,6 +22,33 @@ import type {
   SortOption,
   SubmitIdeaPayload,
 } from "@/types/idea";
+import type {
+  ApiKey,
+  AdminDashboard,
+  AdminIdea,
+  Changelog,
+  ChangelogEntryType,
+  CreateApiKeyResponse,
+  CreateWebhookPayload,
+  InviteTeamMemberPayload,
+  Notification,
+  PortalSettings,
+  TeamMember,
+  TeamRole,
+  Webhook,
+} from "@/types/admin";
+import {
+  MOCK_API_KEYS,
+  MOCK_CHANGELOG,
+  MOCK_NOTIFICATIONS,
+  MOCK_ADMIN_DASHBOARD,
+  MOCK_ADMIN_IDEAS,
+  MOCK_NEW_API_KEY_RESPONSE,
+  MOCK_TEAM_MEMBERS,
+  MOCK_WEBHOOKS,
+} from "@/lib/mockData";
+import type { WidgetSession } from "@/types/widget";
+import { getStoredPortalSettings, savePortalSettings } from "@/lib/brandTheme";
 
 export type FetchIdeasParams = {
   search?: string;
@@ -96,12 +123,17 @@ const mapApiCategory = (category: ApiCategory): Category => ({
 
 const mapApiStatusToIdeaStatus = (status: ApiIdeaStatus): IdeaStatus => {
   switch (status) {
+    case "idea":
+    case "under-review":
     case "under_review":
       return "under_review";
     case "planned":
       return "planned";
+    case "in-progress":
     case "in_progress":
       return "in_progress";
+    case "completed":
+      return "shipped";
     case "shipped":
       return "shipped";
     case "declined":
@@ -127,15 +159,16 @@ const mapApiIdea = (idea: ApiIdea): Idea => ({
   updatedAt: idea.updated_at,
 });
 
-const mapApiComment = (comment: ApiComment): Comment => ({
+const mapApiComment = (comment: ApiComment, ideaId: string = ""): Comment => ({
   id: comment.id,
-  ideaId: comment.idea_id,
-  content: comment.content,
+  ideaId: ideaId,
+  content: comment.body,
   authorId: comment.author.id,
   authorName: comment.author.name,
   authorAvatar: comment.author.avatar_url,
   parentId: comment.parent_id,
   createdAt: comment.created_at,
+  replies: comment.replies?.map(r => mapApiComment(r, ideaId)),
 });
 
 const syncIdeaVoteStatus = async (idea: Idea) => {
@@ -523,7 +556,7 @@ export async function fetchStatusCounts(
 export async function fetchIdeaComments(ideaId: string): Promise<Comment[]> {
   try {
     const response = await apiClient.get<ApiCommentListResponse>(`/ideas/${ideaId}/comments`);
-    return response.data.items.map(mapApiComment);
+    return response.data.items.map((comment) => mapApiComment(comment, ideaId));
   } catch (error) {
     throw new Error(getErrorMessage(error, "Unable to load comments."));
   }
@@ -534,13 +567,13 @@ export async function submitComment(
   payload: { content: string; parentId?: string | null }
 ): Promise<Comment> {
   const requestBody: ApiCreateCommentRequest = {
-    content: payload.content.trim(),
+    body: payload.content.trim(),
     parent_id: payload.parentId || null,
   };
 
   try {
     const response = await apiClient.post<ApiComment>(`/ideas/${ideaId}/comments`, requestBody);
-    return mapApiComment(response.data);
+    return mapApiComment(response.data, ideaId);
   } catch (error) {
     throw new Error(getErrorMessage(error, "Unable to post your comment."));
   }
@@ -550,11 +583,203 @@ export async function fetchRoadmap(): Promise<RoadmapItem[]> {
   try {
     const response = await fetchIdeas({
       statuses: ["planned", "in_progress", "shipped"],
-      pageSize: 100,
-      sort: "most_votes",
+      pageSize: 100, // Fetch enough to show on the roadmap
     });
-    return response.ideas;
+    
+    // Map Idea to RoadmapItem (they share the same structure based on types/idea.ts)
+    return response.ideas as RoadmapItem[];
   } catch (error) {
-    throw new Error(getErrorMessage(error, "Unable to load roadmap."));
+    console.error("Failed to load roadmap:", error);
+    return [];
   }
+}
+
+// --- CHANGELOG API ---
+export async function fetchChangelog(filter?: ChangelogEntryType | "all"): Promise<Changelog[]> {
+  // Mock data for UI testing
+  if (filter && filter !== "all") {
+    return MOCK_CHANGELOG.filter(c => c.type === filter);
+  }
+  return MOCK_CHANGELOG;
+}
+
+export async function subscribeToChangelog(_email: string): Promise<void> {
+  void _email;
+  // Mock data for UI testing
+  return new Promise((resolve) => setTimeout(resolve, 800));
+}
+
+// --- NOTIFICATIONS API ---
+export async function fetchNotifications(): Promise<Notification[]> {
+  // Mock data for UI testing
+  if (!hasStoredSession()) return [];
+  return MOCK_NOTIFICATIONS;
+}
+
+export async function markNotificationsRead(): Promise<void> {
+  // Mock data for UI testing
+  if (!hasStoredSession()) return;
+  return new Promise((resolve) => setTimeout(resolve, 300));
+}
+
+// --- ADMIN API ---
+export async function fetchAdminDashboard(): Promise<AdminDashboard> {
+  // Mock data for UI testing
+  return MOCK_ADMIN_DASHBOARD;
+}
+
+export async function fetchAdminIdeas(): Promise<AdminIdea[]> {
+  // Mock data for UI testing
+  return MOCK_ADMIN_IDEAS;
+}
+
+export async function updateIdeaStatus(_ideaId: string, _status: IdeaStatus): Promise<void> {
+  void _ideaId;
+  void _status;
+  // Mock data for UI testing
+  return new Promise((resolve) => setTimeout(resolve, 500));
+}
+
+export async function mergeIdeas(_primaryId: string, _secondaryIds: string[]): Promise<void> {
+  void _primaryId;
+  void _secondaryIds;
+  // Mock data for UI testing
+  return new Promise((resolve) => setTimeout(resolve, 800));
+}
+
+let mockPortalSettings: PortalSettings = getStoredPortalSettings();
+let mockTeamMembers: TeamMember[] = [...MOCK_TEAM_MEMBERS];
+let mockWebhooks: Webhook[] = [...MOCK_WEBHOOKS];
+let mockApiKeys: ApiKey[] = [...MOCK_API_KEYS];
+
+export async function bootstrapWidgetSession(token?: string): Promise<WidgetSession | null> {
+  await new Promise((resolve) => setTimeout(resolve, 250));
+
+  const trimmedToken = token?.trim();
+  if (!trimmedToken) return null;
+
+  return {
+    token: trimmedToken,
+    userName: "Embedded viewer",
+    userEmail: "viewer@widget.local",
+    source: "url-token",
+  };
+}
+
+export async function fetchPortalSettings(): Promise<PortalSettings> {
+  await new Promise((resolve) => setTimeout(resolve, 250));
+  return mockPortalSettings;
+}
+
+export async function updatePortalSettings(
+  payload: Partial<PortalSettings>,
+): Promise<PortalSettings> {
+  await new Promise((resolve) => setTimeout(resolve, 450));
+  mockPortalSettings = savePortalSettings({
+    ...mockPortalSettings,
+    ...payload,
+  });
+  return mockPortalSettings;
+}
+
+export async function fetchTeamMembers(): Promise<TeamMember[]> {
+  await new Promise((resolve) => setTimeout(resolve, 250));
+  return [...mockTeamMembers];
+}
+
+export async function inviteTeamMember(payload: InviteTeamMemberPayload): Promise<TeamMember> {
+  await new Promise((resolve) => setTimeout(resolve, 450));
+  const invitedAt = new Date().toISOString();
+  const nextMember: TeamMember = {
+    id: `team-${Date.now()}`,
+    name: payload.email.split("@")[0].replace(/[._-]/g, " "),
+    email: payload.email.trim(),
+    role: payload.role,
+    status: "active",
+    invitedAt,
+    lastActiveAt: invitedAt,
+  };
+  mockTeamMembers = [nextMember, ...mockTeamMembers];
+  return nextMember;
+}
+
+export async function updateTeamMemberRole(
+  memberId: string,
+  role: TeamRole,
+): Promise<TeamMember> {
+  await new Promise((resolve) => setTimeout(resolve, 300));
+  const currentMember = mockTeamMembers.find((member) => member.id === memberId);
+  if (!currentMember) {
+    throw new Error("Team member not found.");
+  }
+
+  const updatedMember = { ...currentMember, role };
+  mockTeamMembers = mockTeamMembers.map((member) =>
+    member.id === memberId ? updatedMember : member,
+  );
+  return updatedMember;
+}
+
+export async function revokeTeamMemberAccess(memberId: string): Promise<void> {
+  await new Promise((resolve) => setTimeout(resolve, 350));
+  mockTeamMembers = mockTeamMembers.map((member) =>
+    member.id === memberId
+      ? { ...member, status: "revoked", lastActiveAt: null }
+      : member,
+  );
+}
+
+export async function fetchWebhooks(): Promise<Webhook[]> {
+  await new Promise((resolve) => setTimeout(resolve, 250));
+  return [...mockWebhooks];
+}
+
+export async function createWebhook(payload: CreateWebhookPayload): Promise<Webhook> {
+  await new Promise((resolve) => setTimeout(resolve, 400));
+  const nextWebhook: Webhook = {
+    id: `wh_${Date.now()}`,
+    url: payload.url.trim(),
+    event: payload.event,
+    status: "active",
+    secretPreview: `whsec_${Math.random().toString(16).slice(2, 6)}...${Math.random().toString(16).slice(2, 6)}`,
+    createdAt: new Date().toISOString(),
+  };
+  mockWebhooks = [nextWebhook, ...mockWebhooks];
+  return nextWebhook;
+}
+
+export async function deleteWebhook(webhookId: string): Promise<void> {
+  await new Promise((resolve) => setTimeout(resolve, 300));
+  mockWebhooks = mockWebhooks.filter((webhook) => webhook.id !== webhookId);
+}
+
+export async function fetchApiKeys(): Promise<ApiKey[]> {
+  await new Promise((resolve) => setTimeout(resolve, 250));
+  return [...mockApiKeys];
+}
+
+export async function generateApiKey(name: string = "Generated key"): Promise<CreateApiKeyResponse> {
+  await new Promise((resolve) => setTimeout(resolve, 450));
+  const keyId = `key_${Date.now()}`;
+  const prefix = `fm_live_${Math.random().toString(36).slice(2, 6)}`;
+  const nextResponse: CreateApiKeyResponse = {
+    ...MOCK_NEW_API_KEY_RESPONSE,
+    key: {
+      ...MOCK_NEW_API_KEY_RESPONSE.key,
+      id: keyId,
+      name,
+      prefix,
+      createdAt: new Date().toISOString(),
+    },
+    plainTextToken: `${prefix}${Math.random().toString(36).slice(2, 16)}`,
+  };
+  mockApiKeys = [nextResponse.key, ...mockApiKeys];
+  return nextResponse;
+}
+
+export async function revokeApiKey(keyId: string): Promise<void> {
+  await new Promise((resolve) => setTimeout(resolve, 300));
+  mockApiKeys = mockApiKeys.map((key) =>
+    key.id === keyId ? { ...key, revokedAt: new Date().toISOString() } : key,
+  );
 }

@@ -4,3 +4,13 @@ node_modules/
 .env
 .env.local
 .DS_Store
+api_integration.md
+dashboard-settings-role-tasklist.md
+fixed.md
+implementation_guide.md
+implemntation.md
+initial_setup.md
+phase3-implementation-walkthrough.md
+phase3-qa-checklist.md
+plan.md
+planphase3.md

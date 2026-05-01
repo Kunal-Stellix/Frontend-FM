@@ -8,10 +8,10 @@ async def run_seed():
         try:
             await seed_default_categories(db)
             await db.commit()
-            print("✅ Default categories seeded")
+            print("Default categories seeded")
         except Exception as e:
             await db.rollback()
-            print(f"❌ Seed failed: {e}")
+            print(f"Seed failed: {e}")
 
 
 if __name__ == "__main__":

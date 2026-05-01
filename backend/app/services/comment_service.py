@@ -10,8 +10,10 @@ from app.models.comment import Comment
 from app.models.idea import Idea
 from app.models.user import User
 from app.models.follower import Follower
-# from app.models.notification import Notification
+from app.models.notification import Notification, NotificationType
 from app.schemas.comment import CommentCreate, CommentListResponse, CommentResponse
+from app.services.notification_service import create_notification
+from app.services.webhook_service import dispatch_event
 
 
 class CommentService:
@@ -97,26 +99,32 @@ class CommentService:
 
         self.db.add(comment)
         await self.db.commit()
-        # await self.db.refresh(comment)
 
-        # Notification Logic
-        # stmt = select(Follower).where(Follower.idea_id == idea_id)
-        # result = await self.db.execute(stmt)
-        # followers = result.scalars().all()
+        # If this is a reply, notify the parent comment author
+        if data.parent_id and parent_comment:
+            # Don't notify if replying to yourself
+            if parent_comment.author_id != current_user.id:
+                await create_notification(
+                    self.db,
+                    user_id=parent_comment.author_id,
+                    type=NotificationType.comment_reply,
+                    title=f"New reply to your comment",
+                    body=f"{current_user.name} replied: {data.body.strip()[:100]}",
+                    link=f"/ideas/{idea_id}",
+                )
 
-        # for follower in followers:
-        #     # Don't notify the person who commented
-        #     if follower.user_id != current_user.id:
-        #         notification = Notification(
-        #             user_id=follower.user_id,
-        #             message=f"New comment on: {idea.title}",
-        #             action_url=f"/ideas/{idea_id}"
-        #         )
-        #         self.db.add(notification)
-        
-        # await self.db.commit()
-        
-        
+        # Dispatch webhook for new comment
+        await dispatch_event(
+            self.db,
+            event="comment.created",
+            payload={
+                "comment_id": str(comment.id),
+                "idea_id": str(idea_id),
+                "author_id": str(current_user.id),
+                "body_preview": data.body.strip()[:100],
+                "parent_id": str(data.parent_id) if data.parent_id else None,
+            },
+        )
 
         stmt = (
             select(Comment)

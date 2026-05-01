@@ -161,26 +161,31 @@ export function SubmitIdeaModal({
           ) : null}
 
           <div className="form-control">
-            <input
-              type="text"
-              value={title}
-              required
-              disabled={isSubmitting}
-              minLength={TITLE_MIN_LENGTH}
-              maxLength={TITLE_MAX_LENGTH}
-              placeholder="One sentence that summarizes your Idea"
-              className="input input-bordered w-full"
-              onChange={(event) => {
-                const nextTitle = event.target.value;
-                setTitle(nextTitle);
-                setValidationError(null);
-                setSubmitError(null);
-                if (nextTitle.trim().length < 2) {
-                  setDuplicates([]);
-                  setIsCheckingDuplicates(false);
-                }
-              }}
-            />
+            <div className="relative">
+              <input
+                type="text"
+                value={title}
+                required
+                disabled={isSubmitting}
+                minLength={TITLE_MIN_LENGTH}
+                maxLength={TITLE_MAX_LENGTH}
+                placeholder="One sentence that summarizes your Idea"
+                className="input input-bordered w-full pr-10"
+                onChange={(event) => {
+                  const nextTitle = event.target.value;
+                  setTitle(nextTitle);
+                  setValidationError(null);
+                  setSubmitError(null);
+                  if (nextTitle.trim().length < 2) {
+                    setDuplicates([]);
+                    setIsCheckingDuplicates(false);
+                  }
+                }}
+              />
+              {isCheckingDuplicates ? (
+                <span className="loading loading-spinner loading-xs absolute right-3 top-1/2 -translate-y-1/2 text-base-content/50" />
+              ) : null}
+            </div>
           </div>
 
           <DuplicateWarning duplicates={duplicates} listHref={listHref} />

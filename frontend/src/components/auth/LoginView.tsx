@@ -8,7 +8,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { login, register } from "@/api/auth";
 import { initializeAuthSession } from "@/api/client";
 import { useAuth } from "@/components/auth/AuthProvider";
-import { ArrowLeft, ArrowRight, Loader2 } from "lucide-react";
+import { ArrowLeft, ArrowRight, Eye, EyeOff, Loader2 } from "lucide-react";
 
 type ApiErrorResponse = {
   detail?: string;
@@ -17,13 +17,44 @@ type ApiErrorResponse = {
 
 type ActiveTab = "signin" | "signup";
 
+const loginShowcaseSlides = [
+  {
+    src: "/feedback%20illustration.png",
+    alt: "Feedback management illustration",
+    eyebrow: "Feedback",
+    title: "Capture every signal in one place",
+    description:
+      "Collect requests, bug reports, and product ideas in a single workspace so your team can review, respond, and move faster together.",
+  },
+  {
+    src: "/Community.png",
+    alt: "Community collaboration illustration",
+    eyebrow: "Community",
+    title: "Keep your community close to the product",
+    description:
+      "Bring users, teammates, and stakeholders into the conversation with a shared space for discussion, updates, and visible progress.",
+  },
+  {
+    src: "/roadmap.png.png",
+    alt: "Product roadmap illustration",
+    eyebrow: "Roadmap",
+    title: "Turn ideas into a clear roadmap",
+    description:
+      "Prioritize what matters most, align your next releases, and show everyone how feedback is shaping the direction of your product.",
+  },
+] as const;
+
 export function LoginView() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { completeAuth } = useAuth();
   const [activeTab, setActiveTab] = useState<ActiveTab>("signin");
+  const [activeSlide, setActiveSlide] = useState(0);
   const [formData, setFormData] = useState({ email: "", password: "" });
   const [signupData, setSignupData] = useState({ username: "", email: "", password: "" });
+  const [isSignupUsernameEditable, setIsSignupUsernameEditable] = useState(false);
+  const [showSigninPassword, setShowSigninPassword] = useState(false);
+  const [showSignupPassword, setShowSignupPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const requestedNextPath = searchParams.get("next");
@@ -39,6 +70,16 @@ export function LoginView() {
       router.replace(nextPath);
     }
   }, [nextPath, router]);
+
+  useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      setActiveSlide((currentSlide) => (currentSlide + 1) % loginShowcaseSlides.length);
+    }, 4500);
+
+    return () => window.clearInterval(intervalId);
+  }, []);
+
+  const currentSlide = loginShowcaseSlides[activeSlide];
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -95,21 +136,40 @@ export function LoginView() {
 
         <div className="flex-1 flex items-center justify-center w-full py-5">
           <Image
-            src="/feedback%20illustration.png"
-            alt="Roadmap illustration"
+            key={currentSlide.src}
+            src={currentSlide.src}
+            alt={currentSlide.alt}
             width={280}
             height={280}
             loading="eager"
-            style={{ width: "auto", maxWidth: "100%", height: "auto" }}
+            unoptimized
+            style={{
+              width: "auto",
+              maxWidth: "100%",
+              height: "auto",
+              objectFit: "contain",
+            }}
           />
         </div>
 
         <div className="w-full text-center">
+          <p
+            className="mb-3"
+            style={{
+              fontSize: 11,
+              fontWeight: 700,
+              letterSpacing: "0.18em",
+              textTransform: "uppercase",
+              color: "rgba(255,255,255,0.68)",
+            }}
+          >
+            {currentSlide.eyebrow}
+          </p>
           <h2
             className="font-extrabold mb-3"
             style={{ fontSize: 18, color: "#fff", lineHeight: 1.3 }}
           >
-            Designed for maximum efficiency
+            {currentSlide.title}
           </h2>
           <p
             className="mx-auto mb-5"
@@ -120,23 +180,27 @@ export function LoginView() {
               maxWidth: 300,
             }}
           >
-            Easily manage your feedback projects and files with your centralized platform.
-            Our platform is designed for efficient communication between you and your team.
+            {currentSlide.description}
           </p>
 
           <div className="flex items-center justify-center gap-2">
-            <div
-              className="rounded-full"
-              style={{ width: 8, height: 8, background: "#fff" }}
-            />
-            <div
-              className="rounded-full"
-              style={{ width: 8, height: 8, background: "rgba(255,255,255,0.35)" }}
-            />
-            <div
-              className="rounded-full"
-              style={{ width: 8, height: 8, background: "rgba(255,255,255,0.35)" }}
-            />
+            {loginShowcaseSlides.map((slide, index) => (
+              <button
+                key={slide.src}
+                type="button"
+                aria-label={`Show ${slide.eyebrow} slide`}
+                onClick={() => setActiveSlide(index)}
+                className="rounded-full transition-all"
+                style={{
+                  width: activeSlide === index ? 22 : 8,
+                  height: 8,
+                  border: "none",
+                  cursor: "pointer",
+                  background:
+                    activeSlide === index ? "#fff" : "rgba(255,255,255,0.35)",
+                }}
+              />
+            ))}
           </div>
         </div>
       </div>
@@ -251,7 +315,7 @@ export function LoginView() {
           ) : null}
 
           {activeTab === "signin" ? (
-            <form onSubmit={handleSubmit}>
+            <form onSubmit={handleSubmit} autoComplete="on">
               <div className="mb-4">
                 <label
                   htmlFor="si-email"
@@ -264,6 +328,8 @@ export function LoginView() {
                 <input
                   id="si-email"
                   type="email"
+                  name="email"
+                  autoComplete="email"
                   required
                   className="w-full rounded-lg outline-none transition-all"
                   style={{
@@ -278,11 +344,9 @@ export function LoginView() {
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   onFocus={(e) => {
                     e.currentTarget.style.boxShadow = "0 0 0 2px rgba(232,83,42,0.18)";
-                    e.currentTarget.style.background = "#eeeff1";
                   }}
                   onBlur={(e) => {
                     e.currentTarget.style.boxShadow = "none";
-                    e.currentTarget.style.background = "#f3f4f6";
                   }}
                 />
               </div>
@@ -295,51 +359,40 @@ export function LoginView() {
                 >
                   Password <span style={{ color: "#e8532a" }}>*</span>
                 </label>
-                <input
-                  id="si-pass"
-                  type="password"
-                  required
-                  className="w-full rounded-lg outline-none transition-all"
-                  style={{
-                    height: 52,
-                    background: "#f3f4f6",
-                    border: "none",
-                    padding: "0 16px",
-                    fontSize: 14,
-                    color: "#111",
-                  }}
-                  value={formData.password}
-                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                  onFocus={(e) => {
-                    e.currentTarget.style.boxShadow = "0 0 0 2px rgba(232,83,42,0.18)";
-                    e.currentTarget.style.background = "#eeeff1";
-                  }}
-                  onBlur={(e) => {
-                    e.currentTarget.style.boxShadow = "none";
-                    e.currentTarget.style.background = "#f3f4f6";
-                  }}
-                />
-              </div>
-
-              <div className="flex items-center gap-3 mb-6" style={{ marginTop: 6 }}>
-                <input
-                  type="checkbox"
-                  id="remember"
-                  className="rounded"
-                  style={{
-                    width: 16,
-                    height: 16,
-                    accentColor: "#e8532a",
-                    cursor: "pointer",
-                    flexShrink: 0,
-                  }}
-                />
-                <label
-                  htmlFor="remember"
-                  style={{ fontSize: 13.5, color: "#374151", cursor: "pointer" }}
-                >
-                  Remember me
-                </label>
+                <div className="relative">
+                  <input
+                    id="si-pass"
+                    type={showSigninPassword ? "text" : "password"}
+                    name="current-password"
+                    autoComplete="current-password"
+                    required
+                    className="w-full rounded-lg outline-none transition-all"
+                    style={{
+                      height: 52,
+                      background: "#f3f4f6",
+                      border: "none",
+                      padding: "0 44px 0 16px",
+                      fontSize: 14,
+                      color: "#111",
+                    }}
+                    value={formData.password}
+                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                    onFocus={(e) => {
+                      e.currentTarget.style.boxShadow = "0 0 0 2px rgba(232,83,42,0.18)";
+                    }}
+                    onBlur={(e) => {
+                      e.currentTarget.style.boxShadow = "none";
+                    }}
+                  />
+                  <button
+                    type="button"
+                    aria-label={showSigninPassword ? "Hide password" : "Show password"}
+                    onClick={() => setShowSigninPassword((current) => !current)}
+                    className="absolute inset-y-0 right-0 flex items-center px-4 text-[#6b7280] transition-colors hover:text-[#111]"
+                  >
+                    {showSigninPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
               </div>
 
               <button
@@ -380,41 +433,7 @@ export function LoginView() {
               </p>
             </form>
           ) : (
-            <form onSubmit={handleSignup}>
-              <div className="mb-4">
-                <label
-                  htmlFor="su-user"
-                  className="block mb-2"
-                  style={{ fontSize: 13.5, fontWeight: 500, color: "#111" }}
-                >
-                  Username <span style={{ color: "#e8532a" }}>*</span>
-                </label>
-                <input
-                  id="su-user"
-                  type="text"
-                  required
-                  className="w-full rounded-lg outline-none transition-all"
-                  style={{
-                    height: 52,
-                    background: "#f3f4f6",
-                    border: "none",
-                    padding: "0 16px",
-                    fontSize: 14,
-                    color: "#111",
-                  }}
-                  value={signupData.username}
-                  onChange={(e) => setSignupData({ ...signupData, username: e.target.value })}
-                  onFocus={(e) => {
-                    e.currentTarget.style.boxShadow = "0 0 0 2px rgba(232,83,42,0.18)";
-                    e.currentTarget.style.background = "#eeeff1";
-                  }}
-                  onBlur={(e) => {
-                    e.currentTarget.style.boxShadow = "none";
-                    e.currentTarget.style.background = "#f3f4f6";
-                  }}
-                />
-              </div>
-
+            <form onSubmit={handleSignup} autoComplete="on">
               <div className="mb-4">
                 <label
                   htmlFor="su-email"
@@ -426,6 +445,8 @@ export function LoginView() {
                 <input
                   id="su-email"
                   type="email"
+                  name="email"
+                  autoComplete="section-signup email"
                   required
                   className="w-full rounded-lg outline-none transition-all"
                   style={{
@@ -440,11 +461,9 @@ export function LoginView() {
                   onChange={(e) => setSignupData({ ...signupData, email: e.target.value })}
                   onFocus={(e) => {
                     e.currentTarget.style.boxShadow = "0 0 0 2px rgba(232,83,42,0.18)";
-                    e.currentTarget.style.background = "#eeeff1";
                   }}
                   onBlur={(e) => {
                     e.currentTarget.style.boxShadow = "none";
-                    e.currentTarget.style.background = "#f3f4f6";
                   }}
                 />
               </div>
@@ -457,9 +476,56 @@ export function LoginView() {
                 >
                   Password <span style={{ color: "#e8532a" }}>*</span>
                 </label>
+                <div className="relative">
+                  <input
+                    id="su-pass"
+                    type={showSignupPassword ? "text" : "password"}
+                    name="new-password"
+                    autoComplete="section-signup new-password"
+                    required
+                    className="w-full rounded-lg outline-none transition-all"
+                    style={{
+                      height: 52,
+                      background: "#f3f4f6",
+                      border: "none",
+                      padding: "0 44px 0 16px",
+                      fontSize: 14,
+                      color: "#111",
+                    }}
+                    value={signupData.password}
+                    onChange={(e) => setSignupData({ ...signupData, password: e.target.value })}
+                    onFocus={(e) => {
+                      e.currentTarget.style.boxShadow = "0 0 0 2px rgba(232,83,42,0.18)";
+                    }}
+                    onBlur={(e) => {
+                      e.currentTarget.style.boxShadow = "none";
+                    }}
+                  />
+                  <button
+                    type="button"
+                    aria-label={showSignupPassword ? "Hide password" : "Show password"}
+                    onClick={() => setShowSignupPassword((current) => !current)}
+                    className="absolute inset-y-0 right-0 flex items-center px-4 text-[#6b7280] transition-colors hover:text-[#111]"
+                  >
+                    {showSignupPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+              </div>
+
+              <div className="mb-4">
+                <label
+                  htmlFor="su-user"
+                  className="block mb-2"
+                  style={{ fontSize: 13.5, fontWeight: 500, color: "#111" }}
+                >
+                  Username <span style={{ color: "#e8532a" }}>*</span>
+                </label>
                 <input
-                  id="su-pass"
-                  type="password"
+                  id="su-user"
+                  type="text"
+                  name="signup-name"
+                  autoComplete="off"
+                  readOnly={!isSignupUsernameEditable}
                   required
                   className="w-full rounded-lg outline-none transition-all"
                   style={{
@@ -470,15 +536,15 @@ export function LoginView() {
                     fontSize: 14,
                     color: "#111",
                   }}
-                  value={signupData.password}
-                  onChange={(e) => setSignupData({ ...signupData, password: e.target.value })}
+                  value={signupData.username}
+                  onChange={(e) => setSignupData({ ...signupData, username: e.target.value })}
+                  onPointerDown={() => setIsSignupUsernameEditable(true)}
                   onFocus={(e) => {
+                    setIsSignupUsernameEditable(true);
                     e.currentTarget.style.boxShadow = "0 0 0 2px rgba(232,83,42,0.18)";
-                    e.currentTarget.style.background = "#eeeff1";
                   }}
                   onBlur={(e) => {
                     e.currentTarget.style.boxShadow = "none";
-                    e.currentTarget.style.background = "#f3f4f6";
                   }}
                 />
               </div>

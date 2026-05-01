@@ -94,6 +94,7 @@ export function IdeasPageClient() {
   const statuses = useMemo(() => statusParams(statusesParam), [statusesParam]);
   const page = Math.max(Number(pageParam ?? "1") || 1, 1);
   const isModalOpen = composeParam === "1";
+  const currentPath = searchParams.toString() ? `${pathname}?${searchParams.toString()}` : pathname;
 
   const [ideas, setIdeas] = useState<Idea[]>([]);
   const [total, setTotal] = useState(0);
@@ -178,8 +179,8 @@ export function IdeasPageClient() {
 
   useEffect(() => {
     if (!isModalOpen || isLoggedIn) return;
-    router.replace(`/login?next=${encodeURIComponent(`${pathname}?compose=1`)}`);
-  }, [isLoggedIn, isModalOpen, pathname, router]);
+    router.replace(`/login?next=${encodeURIComponent(currentPath)}`);
+  }, [currentPath, isLoggedIn, isModalOpen, router]);
 
   useEffect(() => {
     const currentRequestId = ++requestIdRef.current;
@@ -317,7 +318,10 @@ export function IdeasPageClient() {
 
   const handleOpenSubmit = () => {
     if (!isLoggedIn) {
-      router.push(`/login?next=${encodeURIComponent(`${pathname}?compose=1`)}`);
+      const params = new URLSearchParams(searchParams.toString());
+      params.set("compose", "1");
+      const nextPath = `${pathname}?${params.toString()}`;
+      router.push(`/login?next=${encodeURIComponent(nextPath)}`);
       return;
     }
     replaceQuery({ compose: true });
@@ -439,7 +443,6 @@ export function IdeasPageClient() {
       </div>
 
       <IdeaSearchBar
-        key={search}
         value={search}
         onChange={(value) => replaceQuery({ search: value, page: 1 })}
       />
@@ -505,6 +508,28 @@ export function IdeasPageClient() {
         isVoting={Boolean(activeIdea && votingIds.includes(activeIdea.id))}
         onVoteToggle={handleVoteToggle}
         onClose={() => replaceQuery({ detail: null })}
+        onCommentAdded={() => {
+          if (activeIdea) {
+            setIdeas((current) =>
+              current.map((idea) =>
+                idea.id === activeIdea.id
+                  ? { ...idea, commentCount: idea.commentCount + 1 }
+                  : idea
+              )
+            );
+            setDetailState((current) =>
+              current && current.idea?.id === activeIdea.id
+                ? {
+                    ...current,
+                    idea: {
+                      ...current.idea,
+                      commentCount: current.idea.commentCount + 1,
+                    },
+                  }
+                : current
+            );
+          }
+        }}
       />
 
       {isModalOpen ? (
@@ -541,7 +566,7 @@ export function IdeasPageClient() {
               <button
                 type="button"
                 className="btn btn-primary"
-                onClick={() => router.push(`/login?next=${encodeURIComponent(pathname)}`)}
+                onClick={() => router.push(`/login?next=${encodeURIComponent(currentPath)}`)}
               >
                 Go to login
               </button>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { authLog, clearAuthSession, initializeAuthSession } from "@/api/client";
 import {
   getStoredRefreshTokenExpiryInfo,
@@ -9,11 +9,18 @@ import {
   subscribeToAuthSession,
 } from "@/lib/authStorage";
 
-const publicRoutes = new Set(["/", "/ideas", "/feedback", "/login", "/register"]);
+const exactPublicRoutes = new Set(["/", "/ideas", "/roadmap", "/changelog", "/login"]);
+const publicRoutePrefixes = ["/feedback/"];
+const isPublicPath = (pathname: string) =>
+  exactPublicRoutes.has(pathname) ||
+  pathname === "/feedback" ||
+  publicRoutePrefixes.some((prefix) => pathname.startsWith(prefix));
 
 export function AuthSessionWatcher() {
   const pathname = usePathname();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const currentPath = searchParams.toString() ? `${pathname}?${searchParams.toString()}` : pathname;
 
   useEffect(() => {
     initializeAuthSession();
@@ -39,7 +46,7 @@ export function AuthSessionWatcher() {
       if (refreshTokenExpiry.isExpired) {
         authLog("Refresh token expired, logging out");
         clearAuthSession();
-        if (!publicRoutes.has(pathname)) router.replace("/login");
+        if (!isPublicPath(pathname)) router.replace(`/login?next=${encodeURIComponent(currentPath)}`);
         return;
       }
 
@@ -50,8 +57,8 @@ export function AuthSessionWatcher() {
         timeoutId = setTimeout(() => {
           authLog("Refresh token expiry timer fired, logging out");
           clearAuthSession();
-          if (!publicRoutes.has(pathname)) {
-            router.replace("/login");
+          if (!isPublicPath(pathname)) {
+            router.replace(`/login?next=${encodeURIComponent(currentPath)}`);
           } else {
             router.refresh();
           }
@@ -66,7 +73,7 @@ export function AuthSessionWatcher() {
       clearExistingTimeout();
       unsubscribe();
     };
-  }, [pathname, router]);
+  }, [currentPath, pathname, router]);
 
   return null;
 }

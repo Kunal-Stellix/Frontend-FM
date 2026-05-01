@@ -15,7 +15,7 @@ function formatTimeAgo(dateString: string) {
   const date = new Date(dateString);
   const now = new Date();
   const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
-  
+
   if (seconds < 60) return "just now";
   const minutes = Math.floor(seconds / 60);
   if (minutes < 60) return `${minutes}m ago`;
@@ -53,7 +53,7 @@ function CommentItem({
           <span className="text-xs text-base-content/50">{formatTimeAgo(comment.createdAt)}</span>
         </div>
         <p className="text-sm text-base-content/80 whitespace-pre-wrap">{comment.content}</p>
-        
+
         {!isReply && (
           <button
             type="button"
@@ -112,11 +112,26 @@ export function CommentThread({
 
   // Attach replies to parents
   const replies = comments.filter((c) => c.parentId);
-  
+
+  const mergeReplies = (nestedReplies: Comment[] = [], flatReplies: Comment[] = []) => {
+    const replyMap = new Map<string, Comment>();
+
+    [...nestedReplies, ...flatReplies].forEach((reply) => {
+      if (!replyMap.has(reply.id)) {
+        replyMap.set(reply.id, reply);
+      }
+    });
+
+    return [...replyMap.values()].sort(
+      (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+    );
+  };
+
   const thread = sortedComments.map((parent) => {
-    const parentReplies = replies
-      .filter((r) => r.parentId === parent.id)
-      .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+    const parentReplies = mergeReplies(
+      parent.replies,
+      replies.filter((reply) => reply.parentId === parent.id),
+    );
     return { ...parent, replies: parentReplies };
   });
 
@@ -143,7 +158,7 @@ export function CommentThread({
           </div>
         ))}
       </div>
-      
+
       {thread.length === 0 && (
         <p className="text-sm text-base-content/50 text-center py-8">
           No comments yet. Be the first to share your thoughts!

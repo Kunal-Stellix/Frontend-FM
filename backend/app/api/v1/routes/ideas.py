@@ -1,6 +1,8 @@
 import uuid
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 
 from app.core.database import get_db
 from app.schemas.idea import IdeaCreate, IdeaResponse, IdeaListResponse, IdeaStatus
@@ -8,10 +10,13 @@ from app.services.ideas import get_all_ideas, create_idea, get_idea_by_id, searc
 from app.core.dependencies import get_current_user, get_current_user_optional
 
 router = APIRouter(prefix="/ideas", tags=["Ideas"])
+limiter = Limiter(key_func=get_remote_address)
 
 
 @router.get("", response_model=IdeaListResponse)
+@limiter.limit("60/minute")
 async def list_ideas(
+    request: Request,
     sort: str = Query("newest", pattern="^(votes|newest|updated|comments)$"),
     status: IdeaStatus | None = None,
     category_id: uuid.UUID | None = None,

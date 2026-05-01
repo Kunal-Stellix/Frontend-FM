@@ -7,6 +7,7 @@ from app.models.follower import Follower
 from app.models.user import User
 from app.schemas.idea import IdeaResponse, IdeaListResponse, AuthorResponse
 from app.schemas.category import CategoryResponse
+from app.services.webhook_service import dispatch_event
 import uuid
 from typing import Optional
 
@@ -115,6 +116,19 @@ async def create_idea(
     db.add(idea)
     db.add(Follower(user_id=user_id, idea_id=idea.id))
     await db.flush()
+
+    # Dispatch webhook
+    await dispatch_event(
+        db,
+        event="idea.created",
+        payload={
+            "idea_id": str(idea.id),
+            "title": idea.title,
+            "author_id": str(user_id),
+            "status": idea.status.value,
+        },
+    )
+
     await db.refresh(idea)
 
     category = await db.get(Category, idea.category_id) if idea.category_id else None
